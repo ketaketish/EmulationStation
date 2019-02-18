@@ -233,19 +233,19 @@ bool ComponentGrid::input(InputConfig* config, Input input)
 	if(!input.value)
 		return false;
 
-	if(config->isMappedLike("down", input))
+	if(config->isMappedTo("down", input))
 	{
 		return moveCursor(Vector2i(0, 1));
 	}
-	if(config->isMappedLike("up", input))
+	if(config->isMappedTo("up", input))
 	{
 		return moveCursor(Vector2i(0, -1));
 	}
-	if(config->isMappedLike("left", input))
+	if(config->isMappedTo("left", input))
 	{
 		return moveCursor(Vector2i(-1, 0));
 	}
-	if(config->isMappedLike("right", input))
+	if(config->isMappedTo("right", input))
 	{
 		return moveCursor(Vector2i(1, 0));
 	}

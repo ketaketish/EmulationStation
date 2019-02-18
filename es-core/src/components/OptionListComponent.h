@@ -48,7 +48,7 @@ private:
 			for(auto it = mParent->mEntries.begin(); it != mParent->mEntries.end(); it++)
 			{
 				row.elements.clear();
-				row.addElement(std::make_shared<TextComponent>(mWindow, Utils::String::toUpper(it->name), font, 0x777777FF), true);
+				row.addElement(std::make_shared<TextComponent>(mWindow, strToUpper(it->name), font, 0x777777FF), true);
 
 				OptionListData& e = *it;
 
@@ -143,9 +143,6 @@ public:
 		mText.setHorizontalAlignment(ALIGN_CENTER);
 		addChild(&mText);
 
-		mLeftArrow.setResize(0, mText.getFont()->getLetterHeight());
-		mRightArrow.setResize(0, mText.getFont()->getLetterHeight());
-
 		if(mMultiSelect)
 		{
 			mRightArrow.setImage(":/arrow.svg");
@@ -190,7 +187,7 @@ public:
 			}
 			if(!mMultiSelect)
 			{
-				if(config->isMappedLike("left", input))
+				if(config->isMappedTo("left", input))
 				{
 					// move selection to previous
 					unsigned int i = getSelectedId();
@@ -203,7 +200,7 @@ public:
 					onSelectedChanged();
 					return true;
 
-				}else if(config->isMappedLike("right", input))
+				}else if(config->isMappedTo("right", input))
 				{
 					// move selection to next
 					unsigned int i = getSelectedId();
@@ -305,7 +302,7 @@ private:
 			{
 				if(it->selected)
 				{
-					mText.setText(Utils::String::toUpper(it->name));
+					mText.setText(strToUpper(it->name));
 					mText.setSize(0, mText.getSize().y());
 					setSize(mText.getSize().x() + mLeftArrow.getSize().x() + mRightArrow.getSize().x() + 24, mText.getSize().y());
 					if(mParent) // hack since theres no "on child size changed" callback atm...
