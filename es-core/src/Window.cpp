@@ -312,11 +312,10 @@ void Window::renderLoadingScreen(std::string text)
 
 	auto& font = mDefaultFonts.at(1);
 
-  TextCache* cache = font->buildTextCache("LOADING... \nCustom Image Created By Doctor X", 0, 0, 0x656565FF);
+	TextCache* cache = font->buildTextCache("LOADING... \nCustom Image Created By Doctor X", 0, 0, 0x656565FF);
 	float x = Math::round((Renderer::getScreenWidth() - cache->metrics.size.x()) / 2.0f);
 	float y = Math::round(Renderer::getScreenHeight() * 0.835f);
 	trans = trans.translate(Vector3f(x, y, 0.0f));
-
 	Renderer::setMatrix(trans);
 	font->renderTextCache(cache);
 	delete cache;
