@@ -54,7 +54,7 @@ public:
 	void update(int deltaTime);
 	void render();
 
-	bool init();
+	bool init(unsigned int width = 0, unsigned int height = 0);
 	void deinit();
 
 	void normalizeNextUpdate();
@@ -63,7 +63,7 @@ public:
 	bool getAllowSleep();
 	void setAllowSleep(bool sleep);
 
-	void renderLoadingScreen(std::string text);
+	void renderLoadingScreen();
 
 	void renderHelpPromptsEarly(); // used to render HelpPrompts before a fade
 	void setHelpPrompts(const std::vector<HelpPrompt>& prompts, const HelpStyle& style);

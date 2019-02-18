@@ -45,21 +45,8 @@ namespace Renderer {
 		//glScissor starts at the bottom left of the window
 		//so (0, 0, 1, 1) is the bottom left pixel
 		//everything else uses y+ = down, so flip it to be consistent
-		switch(Renderer::getScreenRotate())
-		{
-			case 0: { box = ClipRect(box.x,                                         Renderer::getWindowHeight() - (box.y + box.h),                     box.w, box.h); } break;
-			case 1: { box = ClipRect(Renderer::getScreenHeight() - (box.y + box.h), Renderer::getWindowWidth()  - (box.x + box.w),                     box.h, box.w); } break;
-			case 2: { box = ClipRect(Renderer::getScreenWidth()  - (box.x + box.w), Renderer::getWindowHeight() - Renderer::getScreenHeight() + box.y, box.w, box.h); } break;
-			case 3: { box = ClipRect(box.y,                                         Renderer::getWindowWidth()  - Renderer::getScreenWidth()  + box.x, box.h, box.w); } break;
-		}
-
-		switch(Renderer::getScreenRotate())
-		{
-			case 0: { box.x += Renderer::getScreenOffsetX(); box.y -= Renderer::getScreenOffsetY(); } break;
-			case 1: { box.x += Renderer::getScreenOffsetY(); box.y -= Renderer::getScreenOffsetX(); } break;
-			case 2: { box.x += Renderer::getScreenOffsetX(); box.y -= Renderer::getScreenOffsetY(); } break;
-			case 3: { box.x += Renderer::getScreenOffsetY(); box.y -= Renderer::getScreenOffsetX(); } break;
-		}
+		//rect.pos.y = Renderer::getScreenHeight() - rect.pos.y - rect.size.y;
+		box.y = Renderer::getScreenHeight() - box.y - box.h;
 
 		//make sure the box fits within clipStack.top(), and clip further accordingly
 		if(clipStack.size())
@@ -81,7 +68,6 @@ namespace Renderer {
 			box.h = 0;
 
 		clipStack.push(box);
-
 		glScissor(box.x, box.y, box.w, box.h);
 		glEnable(GL_SCISSOR_TEST);
 	}

@@ -56,12 +56,10 @@ public:
 	void setRotationOrigin(float originX, float originY);
 	inline void setRotationOrigin(Vector2f origin) { setRotationOrigin(origin.x(), origin.y()); }
 
-	virtual Vector2f getSize() const;
+	Vector2f getSize() const;
     inline void setSize(const Vector2f& size) { setSize(size.x(), size.y()); }
     void setSize(float w, float h);
     virtual void onSizeChanged() {};
-
-	virtual Vector2f getRotationSize() const { return getSize(); };
 
 	float getRotation() const;
 	void setRotation(float rotation);

@@ -6,7 +6,6 @@
 #include "Renderer.h"
 #include "ThemeData.h"
 #include "Window.h"
-#include <algorithm>
 
 GuiComponent::GuiComponent(Window* window) : mWindow(window), mParent(NULL), mOpacity(255),
 	mPosition(Vector3f::Zero()), mOrigin(Vector2f::Zero()), mRotationOrigin(0.5, 0.5),
@@ -253,9 +252,8 @@ const Transform4x4f& GuiComponent::getTransform()
 	if (mRotation != 0.0)
 	{
 		// Calculate offset as difference between origin and rotation origin
-		Vector2f rotationSize = getRotationSize();
-		float xOff = (mOrigin.x() - mRotationOrigin.x()) * rotationSize.x();
-		float yOff = (mOrigin.y() - mRotationOrigin.y()) * rotationSize.y();
+		float xOff = (mOrigin.x() - mRotationOrigin.x()) * mSize.x();
+		float yOff = (mOrigin.y() - mRotationOrigin.y()) * mSize.y();
 
 		// transform to offset point
 		if (xOff != 0.0 || yOff != 0.0)

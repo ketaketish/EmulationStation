@@ -3,12 +3,12 @@
 #define ES_CORE_THEME_DATA_H
 
 #include "math/Vector2f.h"
-#include "utils/FileSystemUtil.h"
+#include <boost/filesystem/path.hpp>
+#include <boost/variant/get.hpp>
+#include <boost/variant/variant.hpp>
 #include <deque>
 #include <map>
-#include <memory>
 #include <sstream>
-#include <vector>
 
 namespace pugi { class xml_node; }
 
@@ -55,11 +55,11 @@ public:
 	template<typename T>
 	friend ThemeException& operator<<(ThemeException& e, T msg);
 	
-	inline void setFiles(const std::deque<std::string>& deque)
+	inline void setFiles(const std::deque<boost::filesystem::path>& deque)
 	{
-		*this << "from theme \"" << deque.front() << "\"\n";
+		*this << "from theme \"" << deque.front().string() << "\"\n";
 		for(auto it = deque.cbegin() + 1; it != deque.cend(); it++)
-			*this << "  (from included file \"" << (*it) << "\")\n";
+			*this << "  (from included file \"" << (*it).string() << "\")\n";
 		*this << "    ";
 	}
 };
@@ -75,10 +75,10 @@ ThemeException& operator<<(ThemeException& e, T appendMsg)
 
 struct ThemeSet
 {
-	std::string path;
+	boost::filesystem::path path;
 
-	inline std::string getName() const { return Utils::FileSystem::getStem(path); }
-	inline std::string getThemePath(const std::string& system) const { return path + "/" + system + "/theme.xml"; }
+	inline std::string getName() const { return path.stem().string(); }
+	inline boost::filesystem::path getThemePath(const std::string& system) const { return path/system/"theme.xml"; }
 };
 
 class ThemeData
@@ -91,33 +91,10 @@ public:
 		bool extra;
 		std::string type;
 
-		struct Property
-		{
-			void operator= (const Vector2f& value)     { v = value; }
-			void operator= (const std::string& value)  { s = value; }
-			void operator= (const unsigned int& value) { i = value; }
-			void operator= (const float& value)        { f = value; }
-			void operator= (const bool& value)         { b = value; }
-
-			Vector2f     v;
-			std::string  s;
-			unsigned int i;
-			float        f;
-			bool         b;
-		};
-
-		std::map< std::string, Property > properties;
+		std::map< std::string, boost::variant<Vector2f, std::string, unsigned int, float, bool> > properties;
 
 		template<typename T>
-		const T get(const std::string& prop) const
-		{
-			if(     std::is_same<T, Vector2f>::value)     return *(const T*)&properties.at(prop).v;
-			else if(std::is_same<T, std::string>::value)  return *(const T*)&properties.at(prop).s;
-			else if(std::is_same<T, unsigned int>::value) return *(const T*)&properties.at(prop).i;
-			else if(std::is_same<T, float>::value)        return *(const T*)&properties.at(prop).f;
-			else if(std::is_same<T, bool>::value)         return *(const T*)&properties.at(prop).b;
-			return T();
-		}
+		T get(const std::string& prop) const { return boost::get<T>(properties.at(prop)); }
 
 		inline bool has(const std::string& prop) const { return (properties.find(prop) != properties.cend()); }
 	};
@@ -157,14 +134,14 @@ public:
 	static const std::shared_ptr<ThemeData>& getDefault();
 
 	static std::map<std::string, ThemeSet> getThemeSets();
-	static std::string getThemeFromCurrentSet(const std::string& system);
+	static boost::filesystem::path getThemeFromCurrentSet(const std::string& system);
 
 private:
 	static std::map< std::string, std::map<std::string, ElementPropertyType> > sElementMap;
 	static std::vector<std::string> sSupportedFeatures;
 	static std::vector<std::string> sSupportedViews;
 
-	std::deque<std::string> mPaths;
+	std::deque<boost::filesystem::path> mPaths;
 	float mVersion;
 
 	void parseFeatures(const pugi::xml_node& themeRoot);
