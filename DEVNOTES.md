@@ -23,9 +23,9 @@ You probably want to override:
 	`void update(int deltaTime);`
 		`deltaTime` is in milliseconds.
 
-	`void render(const Transform4x4f& parentTrans);`
-		You probably want to do `Transform4x4f trans = parentTrans * getTransform();` to get your final "modelview" matrix.
-		Apply the modelview matrix with `Renderer::setMatrix(const Transform4x4f&)`.
+	`void render(const Eigen::Affine3f& parentTrans);`
+		You probably want to do `Eigen::Affine3f trans = parentTrans * getTransform();` to get your final "modelview" matrix.
+		Apply the modelview matrix with `Renderer::setMatrix(const Eigen::Affine3f&)`.
 		Render any children the component may have with `renderChildren(parentTrans);`.
 
 
