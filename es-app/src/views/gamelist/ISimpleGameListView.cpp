@@ -118,7 +118,7 @@ bool ISimpleGameListView::input(InputConfig* config, Input input)
 			}
 
 			return true;
-		}else if(config->isMappedLike(getQuickSystemSelectRightButton(), input))
+		}else if(config->isMappedTo("right", input))
 		{
 			if(Settings::getInstance()->getBool("QuickSystemSelect"))
 			{
@@ -126,7 +126,7 @@ bool ISimpleGameListView::input(InputConfig* config, Input input)
 				ViewController::get()->goToNextGameList();
 				return true;
 			}
-		}else if(config->isMappedLike(getQuickSystemSelectLeftButton(), input))
+		}else if(config->isMappedTo("left", input))
 		{
 			if(Settings::getInstance()->getBool("QuickSystemSelect"))
 			{
@@ -136,17 +136,14 @@ bool ISimpleGameListView::input(InputConfig* config, Input input)
 			}
 		}else if (config->isMappedTo("x", input))
 		{
-			if (mRoot->getSystem()->isGameSystem())
+			// go to random system game
+			FileData* randomGame = getCursor()->getSystem()->getRandomGame();
+			if (randomGame)
 			{
-				// go to random system game
-				FileData* randomGame = getCursor()->getSystem()->getRandomGame();
-				if (randomGame)
-				{
-					setCursor(randomGame);
-				}
-				return true;
+				setCursor(randomGame);
 			}
-		}else if (config->isMappedTo("y", input) && UIModeController::getInstance()->isUIModeFull())
+			return true;
+		}else if (config->isMappedTo("y", input) && !(UIModeController::getInstance()->isUIModeKid()))
 		{
 			if(mRoot->getSystem()->isGameSystem())
 			{

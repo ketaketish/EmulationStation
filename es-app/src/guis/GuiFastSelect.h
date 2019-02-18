@@ -24,7 +24,7 @@ private:
 	void updateSortText();
 
 	int mSortId;
-	size_t mLetterId;
+	int mLetterId;
 
 	int mScrollDir;
 	int mScrollAccumulator;

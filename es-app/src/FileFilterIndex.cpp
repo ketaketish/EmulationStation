@@ -1,10 +1,11 @@
 #include "FileFilterIndex.h"
 
-#include "utils/StringUtil.h"
 #include "views/UIModeController.h"
 #include "FileData.h"
 #include "Log.h"
 #include "Settings.h"
+#include "Util.h"
+#include <boost/algorithm/string/trim.hpp>
 
 #define UNKNOWN_LABEL "UNKNOWN"
 #define INCLUDE_UNKNOWN false;
@@ -92,8 +93,8 @@ std::string FileFilterIndex::getIndexableKey(FileData* game, FilterIndexType typ
 	{
 		case GENRE_FILTER:
 		{
-			key = Utils::String::toUpper(game->metadata.get("genre"));
-			key = Utils::String::trim(key);
+			key = strToUpper(game->metadata.get("genre"));
+			boost::trim(key);
 			if (getSecondary && !key.empty()) {
 				std::istringstream f(key);
 				std::string newKey;
@@ -119,13 +120,13 @@ std::string FileFilterIndex::getIndexableKey(FileData* game, FilterIndexType typ
 		}
 		case PUBDEV_FILTER:
 		{
-			key = Utils::String::toUpper(game->metadata.get("publisher"));
-			key = Utils::String::trim(key);
+			key = strToUpper(game->metadata.get("publisher"));
+			boost::trim(key);
 
 			if ((getSecondary && !key.empty()) || (!getSecondary && key.empty()))
-				key = Utils::String::toUpper(game->metadata.get("developer"));
+				key = strToUpper(game->metadata.get("developer"));
 			else
-				key = Utils::String::toUpper(game->metadata.get("publisher"));
+				key = strToUpper(game->metadata.get("publisher"));
 			break;
 		}
 		case RATINGS_FILTER:
@@ -154,25 +155,25 @@ std::string FileFilterIndex::getIndexableKey(FileData* game, FilterIndexType typ
 		{
 			if (game->getType() != GAME)
 				return "FALSE";
-			key = Utils::String::toUpper(game->metadata.get("favorite"));
+			key = strToUpper(game->metadata.get("favorite"));
 			break;
 		}
 		case HIDDEN_FILTER:
 		{
 			if (game->getType() != GAME)
 				return "FALSE";
-			key = Utils::String::toUpper(game->metadata.get("hidden"));
+			key = strToUpper(game->metadata.get("hidden"));
 			break;
 		}
 		case KIDGAME_FILTER:
 		{
 			if (game->getType() != GAME)
 				return "FALSE";
-			key = Utils::String::toUpper(game->metadata.get("kidgame"));
+			key = strToUpper(game->metadata.get("kidgame"));
 			break;
 		}
 	}
-	key = Utils::String::trim(key);
+	boost::trim(key);
 	if (key.empty() || (type == RATINGS_FILTER && key == "0 STARS")) {
 		key = UNKNOWN_LABEL;
 	}
@@ -247,19 +248,17 @@ void FileFilterIndex::resetFilters()
 
 void FileFilterIndex::setUIModeFilters()
 {
-	if(!Settings::getInstance()->getBool("ForceDisableFilters")){
-		if (UIModeController::getInstance()->isUIModeKiosk())
-		{
-			filterByHidden = true;
-			std::vector<std::string> val = { "FALSE" };
-			setFilter(HIDDEN_FILTER, &val);
-		}
-		if (UIModeController::getInstance()->isUIModeKid())
-		{
-			filterByKidGame = true;
-			std::vector<std::string> val = { "TRUE" };
-			setFilter(KIDGAME_FILTER, &val);
-		}
+	if (!UIModeController::getInstance()->isUIModeFull())
+	{
+		filterByHidden = true;
+		std::vector<std::string> val = { "FALSE" };
+		setFilter(HIDDEN_FILTER, &val);
+	}
+	if (UIModeController::getInstance()->isUIModeKid())
+	{
+		filterByKidGame = true;
+		std::vector<std::string> val = { "TRUE" };
+		setFilter(KIDGAME_FILTER, &val);
 	}
 }
 
