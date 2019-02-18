@@ -311,7 +311,7 @@ void Window::renderLoadingScreen(std::string text)
 	splash.render(trans);
 
 	auto& font = mDefaultFonts.at(1);
-	TextCache* cache = font->buildTextCache("Custom Image by Doctor X\n"text, 0, 0, 0x656565FF);
+	TextCache* cache = font->buildTextCache(text, 0, 0, 0x656565FF);
 
 	float x = Math::round((Renderer::getScreenWidth() - cache->metrics.size.x()) / 2.0f);
 	float y = Math::round(Renderer::getScreenHeight() * 0.835f);
