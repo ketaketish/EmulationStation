@@ -15,8 +15,7 @@ enum CarouselType : unsigned int
 {
 	HORIZONTAL = 0,
 	VERTICAL = 1,
-	VERTICAL_WHEEL = 2,
-	HORIZONTAL_WHEEL = 3
+	VERTICAL_WHEEL = 2
 };
 
 struct SystemViewData

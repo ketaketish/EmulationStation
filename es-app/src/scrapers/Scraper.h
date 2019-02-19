@@ -5,11 +5,7 @@
 #include "AsyncHandle.h"
 #include "HttpReq.h"
 #include "MetaData.h"
-#include <functional>
-#include <memory>
 #include <queue>
-#include <utility>
-#include <assert.h>
 
 #define MAX_SCRAPER_RESULTS 7
 
@@ -31,9 +27,6 @@ struct ScraperSearchResult
 	MetaDataList mdl;
 	std::string imageUrl;
 	std::string thumbnailUrl;
-
-	// Needed to pre-set the image type
-	std::string imageType;
 };
 
 // So let me explain why I've abstracted this so heavily.
@@ -112,9 +105,6 @@ std::unique_ptr<ScraperSearchHandle> startScraperSearch(const ScraperSearchParam
 
 // returns a list of valid scraper names
 std::vector<std::string> getScraperList();
-
-// returns true if the scraper configured in the settings is still valid
-bool isValidConfiguredScraper();
 
 typedef void (*generate_scraper_requests_func)(const ScraperSearchParams& params, std::queue< std::unique_ptr<ScraperRequest> >& requests, std::vector<ScraperSearchResult>& results);
 

@@ -1,10 +1,11 @@
 #include "FileFilterIndex.h"
+#include "Settings.h"
+#include "views/ViewController.h"
 
-#include "utils/StringUtil.h"
-#include "views/UIModeController.h"
 #include "FileData.h"
 #include "Log.h"
-#include "Settings.h"
+#include "Util.h"
+#include <boost/algorithm/string/trim.hpp>
 
 #define UNKNOWN_LABEL "UNKNOWN"
 #define INCLUDE_UNKNOWN false;
@@ -57,11 +58,11 @@ void FileFilterIndex::importIndex(FileFilterIndex* indexToImport)
 
 	std::vector<IndexImportStructure> indexImportDecl = std::vector<IndexImportStructure>(indexStructDecls, indexStructDecls + sizeof(indexStructDecls) / sizeof(indexStructDecls[0]));
 
-	for (std::vector<IndexImportStructure>::const_iterator indexesIt = indexImportDecl.cbegin(); indexesIt != indexImportDecl.cend(); ++indexesIt )
+	for (std::vector<IndexImportStructure>::iterator indexesIt = indexImportDecl.begin(); indexesIt != indexImportDecl.end(); ++indexesIt )
 	{
-		for (std::map<std::string, int>::const_iterator sourceIt = (*indexesIt).sourceIndex->cbegin(); sourceIt != (*indexesIt).sourceIndex->cend(); ++sourceIt )
+		for (std::map<std::string, int>::iterator sourceIt = (*indexesIt).sourceIndex->begin(); sourceIt != (*indexesIt).sourceIndex->end(); ++sourceIt )
 		{
-			if ((*indexesIt).destinationIndex->find((*sourceIt).first) == (*indexesIt).destinationIndex->cend())
+			if ((*indexesIt).destinationIndex->find((*sourceIt).first) == (*indexesIt).destinationIndex->end())
 			{
 				// entry doesn't exist
 				(*((*indexesIt).destinationIndex))[(*sourceIt).first] = (*sourceIt).second;
@@ -92,8 +93,8 @@ std::string FileFilterIndex::getIndexableKey(FileData* game, FilterIndexType typ
 	{
 		case GENRE_FILTER:
 		{
-			key = Utils::String::toUpper(game->metadata.get("genre"));
-			key = Utils::String::trim(key);
+			key = strToUpper(game->metadata.get("genre"));
+			boost::trim(key);
 			if (getSecondary && !key.empty()) {
 				std::istringstream f(key);
 				std::string newKey;
@@ -119,13 +120,13 @@ std::string FileFilterIndex::getIndexableKey(FileData* game, FilterIndexType typ
 		}
 		case PUBDEV_FILTER:
 		{
-			key = Utils::String::toUpper(game->metadata.get("publisher"));
-			key = Utils::String::trim(key);
+			key = strToUpper(game->metadata.get("publisher"));
+			boost::trim(key);
 
 			if ((getSecondary && !key.empty()) || (!getSecondary && key.empty()))
-				key = Utils::String::toUpper(game->metadata.get("developer"));
+				key = strToUpper(game->metadata.get("developer"));
 			else
-				key = Utils::String::toUpper(game->metadata.get("publisher"));
+				key = strToUpper(game->metadata.get("publisher"));
 			break;
 		}
 		case RATINGS_FILTER:
@@ -154,25 +155,25 @@ std::string FileFilterIndex::getIndexableKey(FileData* game, FilterIndexType typ
 		{
 			if (game->getType() != GAME)
 				return "FALSE";
-			key = Utils::String::toUpper(game->metadata.get("favorite"));
+			key = strToUpper(game->metadata.get("favorite"));
 			break;
 		}
 		case HIDDEN_FILTER:
 		{
 			if (game->getType() != GAME)
 				return "FALSE";
-			key = Utils::String::toUpper(game->metadata.get("hidden"));
+			key = strToUpper(game->metadata.get("hidden"));
 			break;
 		}
 		case KIDGAME_FILTER:
 		{
 			if (game->getType() != GAME)
 				return "FALSE";
-			key = Utils::String::toUpper(game->metadata.get("kidgame"));
+			key = strToUpper(game->metadata.get("kidgame"));
 			break;
 		}
 	}
-	key = Utils::String::trim(key);
+	boost::trim(key);
 	if (key.empty() || (type == RATINGS_FILTER && key == "0 STARS")) {
 		key = UNKNOWN_LABEL;
 	}
@@ -210,15 +211,15 @@ void FileFilterIndex::setFilter(FilterIndexType type, std::vector<std::string>* 
 	}
 	else
 	{
-		for (std::vector<FilterDataDecl>::const_iterator it = filterDataDecl.cbegin(); it != filterDataDecl.cend(); ++it ) {
+		for (std::vector<FilterDataDecl>::iterator it = filterDataDecl.begin(); it != filterDataDecl.end(); ++it ) {
 			if ((*it).type == type)
 			{
 				FilterDataDecl filterData = (*it);
 				*(filterData.filteredByRef) = values->size() > 0;
 				filterData.currentFilteredKeys->clear();
-				for (std::vector<std::string>::const_iterator vit = values->cbegin(); vit != values->cend(); ++vit ) {
+				for (std::vector<std::string>::iterator vit = values->begin(); vit != values->end(); ++vit ) {
 					// check if exists
-					if (filterData.allIndexKeys->find(*vit) != filterData.allIndexKeys->cend()) {
+					if (filterData.allIndexKeys->find(*vit) != filterData.allIndexKeys->end()) {
 						filterData.currentFilteredKeys->push_back(std::string(*vit));
 					}
 				}
@@ -230,7 +231,7 @@ void FileFilterIndex::setFilter(FilterIndexType type, std::vector<std::string>* 
 
 void FileFilterIndex::clearAllFilters()
 {
-	for (std::vector<FilterDataDecl>::const_iterator it = filterDataDecl.cbegin(); it != filterDataDecl.cend(); ++it )
+	for (std::vector<FilterDataDecl>::iterator it = filterDataDecl.begin(); it != filterDataDecl.end(); ++it )
 	{
 		FilterDataDecl filterData = (*it);
 		*(filterData.filteredByRef) = false;
@@ -247,19 +248,17 @@ void FileFilterIndex::resetFilters()
 
 void FileFilterIndex::setUIModeFilters()
 {
-	if(!Settings::getInstance()->getBool("ForceDisableFilters")){
-		if (UIModeController::getInstance()->isUIModeKiosk())
-		{
-			filterByHidden = true;
-			std::vector<std::string> val = { "FALSE" };
-			setFilter(HIDDEN_FILTER, &val);
-		}
-		if (UIModeController::getInstance()->isUIModeKid())
-		{
-			filterByKidGame = true;
-			std::vector<std::string> val = { "TRUE" };
-			setFilter(KIDGAME_FILTER, &val);
-		}
+	if (!ViewController::get()->isUIModeFull())
+	{
+		filterByHidden = true;
+		std::vector<std::string> val = { "FALSE" };
+		setFilter(HIDDEN_FILTER, &val);
+	}
+	if (ViewController::get()->isUIModeKid())
+	{
+		filterByKidGame = true;
+		std::vector<std::string> val = { "TRUE" };
+		setFilter(KIDGAME_FILTER, &val);
 	}
 }
 
@@ -301,7 +300,7 @@ bool FileFilterIndex::showFile(FileData* game)
 		std::vector<FileData*> children = game->getChildren();
 		// iterate through all of the children, until there's a match
 
-		for (std::vector<FileData*>::const_iterator it = children.cbegin(); it != children.cend(); ++it ) {
+		for (std::vector<FileData*>::iterator it = children.begin(); it != children.end(); ++it ) {
 			if (showFile(*it))
 			{
 				return true;
@@ -312,7 +311,7 @@ bool FileFilterIndex::showFile(FileData* game)
 
 	bool keepGoing = false;
 
-	for (std::vector<FilterDataDecl>::const_iterator it = filterDataDecl.cbegin(); it != filterDataDecl.cend(); ++it ) {
+	for (std::vector<FilterDataDecl>::iterator it = filterDataDecl.begin(); it != filterDataDecl.end(); ++it ) {
 		FilterDataDecl filterData = (*it);
 		if(*(filterData.filteredByRef))
 		{
@@ -353,7 +352,7 @@ bool FileFilterIndex::isKeyBeingFilteredBy(std::string key, FilterIndexType type
 	{
 		if (filterTypes[i] == type)
 		{
-			for (std::vector<std::string>::const_iterator it = filterKeysList[i].cbegin(); it != filterKeysList[i].cend(); ++it )
+			for (std::vector<std::string>::iterator it = filterKeysList[i].begin(); it != filterKeysList[i].end(); ++it )
 			{
 				if (key == (*it))
 				{
@@ -504,7 +503,7 @@ void FileFilterIndex::manageIndexEntry(std::map<std::string, int>* index, std::s
 		return;
 	if (remove) {
 		// removing entry
-		if (index->find(key) == index->cend())
+		if (index->find(key) == index->end())
 		{
 			// this shouldn't happen
 			LOG(LogInfo) << "Couldn't find entry in index! " << key;
@@ -520,7 +519,7 @@ void FileFilterIndex::manageIndexEntry(std::map<std::string, int>* index, std::s
 	else
 	{
 		// adding entry
-		if (index->find(key) == index->cend())
+		if (index->find(key) == index->end())
 		{
 			(*index)[key] = 1;
 		}

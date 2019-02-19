@@ -1,13 +1,14 @@
 #include "MetaData.h"
 
-#include "utils/FileSystemUtil.h"
 #include "Log.h"
-#include <pugixml/src/pugixml.hpp>
+#include "Util.h"
+#include <boost/date_time/posix_time/time_formatters.hpp>
+
+namespace fs = boost::filesystem;
 
 MetaDataDecl gameDecls[] = {
 	// key,         type,                   default,            statistic,  name in GuiMetaDataEd,  prompt in GuiMetaDataEd
 	{"name",        MD_STRING,              "",                 false,      "name",                 "enter game name"},
-	{"sortname",    MD_STRING,              "",                 false,      "sortname",             "enter game sort name"},
 	{"desc",        MD_MULTILINE_STRING,    "",                 false,      "description",          "enter description"},
 	{"image",       MD_PATH,                "",                 false,      "image",                "enter path to image"},
 	{"video",       MD_PATH     ,           "",                 false,      "video",                "enter path to video"},
@@ -29,7 +30,6 @@ const std::vector<MetaDataDecl> gameMDD(gameDecls, gameDecls + sizeof(gameDecls)
 
 MetaDataDecl folderDecls[] = {
 	{"name",        MD_STRING,              "",                 false,      "name",                 "enter game name"},
-	{"sortname",    MD_STRING,              "",                 false,      "sortname",             "enter game sort name"},
 	{"desc",        MD_MULTILINE_STRING,    "",                 false,      "description",          "enter description"},
 	{"image",       MD_PATH,                "",                 false,      "image",                "enter path to image"},
 	{"thumbnail",   MD_PATH,                "",                 false,      "thumbnail",            "enter path to thumbnail"},
@@ -64,18 +64,18 @@ MetaDataList::MetaDataList(MetaDataListType type)
 	: mType(type), mWasChanged(false)
 {
 	const std::vector<MetaDataDecl>& mdd = getMDD();
-	for(auto iter = mdd.cbegin(); iter != mdd.cend(); iter++)
+	for(auto iter = mdd.begin(); iter != mdd.end(); iter++)
 		set(iter->key, iter->defaultValue);
 }
 
 
-MetaDataList MetaDataList::createFromXML(MetaDataListType type, pugi::xml_node& node, const std::string& relativeTo)
+MetaDataList MetaDataList::createFromXML(MetaDataListType type, pugi::xml_node node, const fs::path& relativeTo)
 {
 	MetaDataList mdl(type);
 
 	const std::vector<MetaDataDecl>& mdd = mdl.getMDD();
 
-	for(auto iter = mdd.cbegin(); iter != mdd.cend(); iter++)
+	for(auto iter = mdd.begin(); iter != mdd.end(); iter++)
 	{
 		pugi::xml_node md = node.child(iter->key.c_str());
 		if(md)
@@ -84,7 +84,7 @@ MetaDataList MetaDataList::createFromXML(MetaDataListType type, pugi::xml_node& 
 			std::string value = md.text().get();
 			if (iter->type == MD_PATH)
 			{
-				value = Utils::FileSystem::resolveRelativePath(value, relativeTo, true);
+				value = resolvePath(value, relativeTo, true).generic_string();
 			}
 			mdl.set(iter->key, value);
 		}else{
@@ -95,14 +95,14 @@ MetaDataList MetaDataList::createFromXML(MetaDataListType type, pugi::xml_node& 
 	return mdl;
 }
 
-void MetaDataList::appendToXML(pugi::xml_node& parent, bool ignoreDefaults, const std::string& relativeTo) const
+void MetaDataList::appendToXML(pugi::xml_node parent, bool ignoreDefaults, const fs::path& relativeTo) const
 {
 	const std::vector<MetaDataDecl>& mdd = getMDD();
 
-	for(auto mddIter = mdd.cbegin(); mddIter != mdd.cend(); mddIter++)
+	for(auto mddIter = mdd.begin(); mddIter != mdd.end(); mddIter++)
 	{
 		auto mapIter = mMap.find(mddIter->key);
-		if(mapIter != mMap.cend())
+		if(mapIter != mMap.end())
 		{
 			// we have this value!
 			// if it's just the default (and we ignore defaults), don't write it
@@ -112,7 +112,7 @@ void MetaDataList::appendToXML(pugi::xml_node& parent, bool ignoreDefaults, cons
 			// try and make paths relative if we can
 			std::string value = mapIter->second;
 			if (mddIter->type == MD_PATH)
-				value = Utils::FileSystem::createRelativePath(value, relativeTo, true);
+				value = makeRelativePath(value, relativeTo, true).generic_string();
 
 			parent.append_child(mapIter->first.c_str()).text().set(value.c_str());
 		}
@@ -123,6 +123,11 @@ void MetaDataList::set(const std::string& key, const std::string& value)
 {
 	mMap[key] = value;
 	mWasChanged = true;
+}
+
+void MetaDataList::setTime(const std::string& key, const boost::posix_time::ptime& time)
+{
+	set(key, boost::posix_time::to_iso_string(time));
 }
 
 const std::string& MetaDataList::get(const std::string& key) const
@@ -138,6 +143,11 @@ int MetaDataList::getInt(const std::string& key) const
 float MetaDataList::getFloat(const std::string& key) const
 {
 	return (float)atof(get(key).c_str());
+}
+
+boost::posix_time::ptime MetaDataList::getTime(const std::string& key) const
+{
+	return string_to_ptime(get(key), "%Y%m%dT%H%M%S%F%q");
 }
 
 bool MetaDataList::isDefault()

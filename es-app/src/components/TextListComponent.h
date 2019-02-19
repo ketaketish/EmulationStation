@@ -4,9 +4,9 @@
 
 #include "components/IList.h"
 #include "math/Misc.h"
-#include "utils/StringUtil.h"
 #include "Log.h"
 #include "Sound.h"
+#include "Util.h"
 #include <memory>
 
 class TextCache;
@@ -63,7 +63,7 @@ public:
 			it->data.textCache.reset();
 	}
 
-	inline void setUppercase(bool /*uppercase*/) 
+	inline void setUppercase(bool uppercase) 
 	{
 		mUppercase = true;
 		for(auto it = mEntries.begin(); it != mEntries.end(); it++)
@@ -78,7 +78,7 @@ public:
 	inline void setLineSpacing(float lineSpacing) { mLineSpacing = lineSpacing; }
 
 protected:
-	virtual void onScroll(int /*amt*/) { if(!mScrollSound.empty()) Sound::get(mScrollSound)->play(); }
+	virtual void onScroll(int amt) { if(!mScrollSound.empty()) Sound::get(mScrollSound)->play(); }
 	virtual void onCursorChanged(const CursorState& state);
 
 private:
@@ -137,7 +137,7 @@ void TextListComponent<T>::render(const Transform4x4f& parentTrans)
 	if(size() == 0)
 		return;
 
-	const float entrySize = Math::max(font->getHeight(1.0), (float)font->getSize()) * mLineSpacing;
+	const float entrySize = std::max(font->getHeight(1.0), (float)font->getSize()) * mLineSpacing;
 
 	int startEntry = 0;
 
@@ -188,7 +188,7 @@ void TextListComponent<T>::render(const Transform4x4f& parentTrans)
 			color = mColors[entry.data.colorId];
 
 		if(!entry.data.textCache)
-			entry.data.textCache = std::unique_ptr<TextCache>(font->buildTextCache(mUppercase ? Utils::String::toUpper(entry.name) : entry.name, 0, 0, 0x000000FF));
+			entry.data.textCache = std::unique_ptr<TextCache>(font->buildTextCache(mUppercase ? strToUpper(entry.name) : entry.name, 0, 0, 0x000000FF));
 
 		entry.data.textCache->setColor(color);
 
@@ -217,7 +217,7 @@ void TextListComponent<T>::render(const Transform4x4f& parentTrans)
 
 		// currently selected item text might be scrolling
 		if((mCursor == i) && (mMarqueeOffset > 0))
-			drawTrans.translate(offset - Vector3f((float)mMarqueeOffset, 0, 0));
+			drawTrans.translate(offset - Vector3f(mMarqueeOffset, 0, 0));
 		else
 			drawTrans.translate(offset);
 
@@ -229,7 +229,7 @@ void TextListComponent<T>::render(const Transform4x4f& parentTrans)
 		if((mCursor == i) && (mMarqueeOffset2 < 0))
 		{
 			drawTrans = trans;
-			drawTrans.translate(offset - Vector3f((float)mMarqueeOffset2, 0, 0));
+			drawTrans.translate(offset - Vector3f(mMarqueeOffset2, 0, 0));
 			Renderer::setMatrix(drawTrans);
 			font->renderTextCache(entry.data.textCache.get());
 		}
@@ -251,13 +251,13 @@ bool TextListComponent<T>::input(InputConfig* config, Input input)
 	{
 		if(input.value != 0)
 		{
-			if(config->isMappedLike("down", input))
+			if(config->isMappedTo("down", input))
 			{
 				listInput(1);
 				return true;
 			}
 
-			if(config->isMappedLike("up", input))
+			if(config->isMappedTo("up", input))
 			{
 				listInput(-1);
 				return true;
@@ -274,7 +274,7 @@ bool TextListComponent<T>::input(InputConfig* config, Input input)
 				return true;
 			}
 		}else{
-			if(config->isMappedLike("down", input) || config->isMappedLike("up", input) || 
+			if(config->isMappedTo("down", input) || config->isMappedTo("up", input) || 
 				config->isMappedTo("pagedown", input) || config->isMappedTo("pageup", input))
 			{
 				stopScrolling();
@@ -298,28 +298,28 @@ void TextListComponent<T>::update(int deltaTime)
 
 		// if we're not scrolling and this object's text goes outside our size, marquee it!
 		const float textLength = mFont->sizeText(mEntries.at((unsigned int)mCursor).name).x();
-		const float limit      = mSize.x() - mHorizontalMargin * 2;
+		const int   limit      = mSize.x() - mHorizontalMargin * 2;
 
 		if(textLength > limit)
 		{
 			// loop
 			// pixels per second ( based on nes-mini font at 1920x1080 to produce a speed of 200 )
 			const float speed        = mFont->sizeText("ABCDEFGHIJKLMNOPQRSTUVWXYZ").x() * 0.247f;
-			const float delay        = 3000;
-			const float scrollLength = textLength;
-			const float returnLength = speed * 1.5f;
-			const float scrollTime   = (scrollLength * 1000) / speed;
-			const float returnTime   = (returnLength * 1000) / speed;
-			const int   maxTime      = (int)(delay + scrollTime + returnTime);
+			const int   delay        = 3000;
+			const int   scrollLength = textLength;
+			const int   returnLength = (int)(speed * 1.5);
+			const int   scrollTime   = (int)((scrollLength * 1000) / speed);
+			const int   returnTime   = (int)((returnLength * 1000) / speed);
+			const int   maxTime      = (delay + scrollTime + returnTime);
 
 			mMarqueeTime += deltaTime;
 			while(mMarqueeTime > maxTime)
 				mMarqueeTime -= maxTime;
 
-			mMarqueeOffset = (int)(Math::Scroll::loop(delay, scrollTime + returnTime, (float)mMarqueeTime, scrollLength + returnLength));
+			mMarqueeOffset = Math::scroll_loop(delay, scrollTime + returnTime, mMarqueeTime, scrollLength + returnLength);
 
 			if(mMarqueeOffset > (scrollLength - (limit - returnLength)))
-				mMarqueeOffset2 = (int)(mMarqueeOffset - (scrollLength + returnLength));
+				mMarqueeOffset2 = mMarqueeOffset - (scrollLength + returnLength);
 		}
 	}
 
@@ -373,7 +373,7 @@ void TextListComponent<T>::applyTheme(const std::shared_ptr<ThemeData>& theme, c
 	}
 
 	setFont(Font::getFromTheme(elem, properties, mFont));
-	const float selectorHeight = Math::max(mFont->getHeight(1.0), (float)mFont->getSize()) * mLineSpacing;
+	const float selectorHeight = std::max(mFont->getHeight(1.0), (float)mFont->getSize()) * mLineSpacing;
 	setSelectorHeight(selectorHeight);
 
 	if(properties & SOUND && elem->has("scrollSound"))

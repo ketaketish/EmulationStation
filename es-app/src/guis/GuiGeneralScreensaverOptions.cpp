@@ -2,7 +2,6 @@
 
 #include "components/OptionListComponent.h"
 #include "components/SliderComponent.h"
-#include "components/SwitchComponent.h"
 #include "guis/GuiMsgBox.h"
 #include "guis/GuiSlideshowScreensaverOptions.h"
 #include "guis/GuiVideoScreensaverOptions.h"
@@ -15,15 +14,9 @@ GuiGeneralScreensaverOptions::GuiGeneralScreensaverOptions(Window* window, const
 	screensaver_time->setValue((float)(Settings::getInstance()->getInt("ScreenSaverTime") / (1000 * 60)));
 	addWithLabel("SCREENSAVER AFTER", screensaver_time);
 	addSaveFunc([screensaver_time] {
-	    Settings::getInstance()->setInt("ScreenSaverTime", (int)Math::round(screensaver_time->getValue()) * (1000 * 60));
+	    Settings::getInstance()->setInt("ScreenSaverTime", (int)round(screensaver_time->getValue()) * (1000 * 60));
 	    PowerSaver::updateTimeouts();
 	});
-	
-	// Allow ScreenSaver Controls - ScreenSaverControls
-	auto ss_controls = std::make_shared<SwitchComponent>(mWindow);
-	ss_controls->setState(Settings::getInstance()->getBool("ScreenSaverControls"));
-	addWithLabel("SCREENSAVER CONTROLS", ss_controls);
-	addSaveFunc([ss_controls] { Settings::getInstance()->setBool("ScreenSaverControls", ss_controls->getState()); });	
 
 	// screensaver behavior
 	auto screensaver_behavior = std::make_shared< OptionListComponent<std::string> >(mWindow, "SCREENSAVER BEHAVIOR", false);
@@ -32,7 +25,7 @@ GuiGeneralScreensaverOptions::GuiGeneralScreensaverOptions(Window* window, const
 	screensavers.push_back("black");
 	screensavers.push_back("random video");
 	screensavers.push_back("slideshow");
-	for(auto it = screensavers.cbegin(); it != screensavers.cend(); it++)
+	for(auto it = screensavers.begin(); it != screensavers.end(); it++)
 		screensaver_behavior->add(*it, *it, Settings::getInstance()->getString("ScreenSaverBehavior") == *it);
 	addWithLabel("SCREENSAVER BEHAVIOR", screensaver_behavior);
 	addSaveFunc([this, screensaver_behavior] {

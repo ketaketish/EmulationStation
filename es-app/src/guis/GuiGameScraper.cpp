@@ -19,13 +19,13 @@ GuiGameScraper::GuiGameScraper(Window* window, ScraperSearchParams params, std::
 
 	// row 0 is a spacer
 
-	mGameName = std::make_shared<TextComponent>(mWindow, Utils::String::toUpper(Utils::FileSystem::getFileName(mSearchParams.game->getPath())),
+	mGameName = std::make_shared<TextComponent>(mWindow, strToUpper(mSearchParams.game->getPath().filename().generic_string()),
 		Font::get(FONT_SIZE_MEDIUM), 0x777777FF, ALIGN_CENTER);
 	mGrid.setEntry(mGameName, Vector2i(0, 1), false, true);
 
 	// row 2 is a spacer
 
-	mSystemName = std::make_shared<TextComponent>(mWindow, Utils::String::toUpper(mSearchParams.system->getFullName()), Font::get(FONT_SIZE_SMALL),
+	mSystemName = std::make_shared<TextComponent>(mWindow, strToUpper(mSearchParams.system->getFullName()), Font::get(FONT_SIZE_SMALL),
 		0x888888FF, ALIGN_CENTER);
 	mGrid.setEntry(mSystemName, Vector2i(0, 3), false, true);
 
@@ -51,7 +51,7 @@ GuiGameScraper::GuiGameScraper(Window* window, ScraperSearchParams params, std::
 	// this is because of how GuiComponent::update works.  if it was just delete this, this would happen when the metadata resolver is done:
 	//     GuiGameScraper::update()
 	//       GuiComponent::update()
-	//         it = mChildren.cbegin();
+	//         it = mChildren.begin();
 	//         mBox::update()
 	//         it++;
 	//         mSearchComponent::update()
@@ -61,7 +61,7 @@ GuiGameScraper::GuiGameScraper(Window* window, ScraperSearchParams params, std::
 	// so instead we do this:
 	//     GuiGameScraper::update()
 	//       GuiComponent::update()
-	//         it = mChildren.cbegin();
+	//         it = mChildren.begin();
 	//         mBox::update()
 	//         it++;
 	//         mSearchComponent::update()

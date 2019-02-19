@@ -2,7 +2,6 @@
 
 #include "animations/LambdaAnimation.h"
 #include "guis/GuiMsgBox.h"
-#include "views/UIModeController.h"
 #include "views/ViewController.h"
 #include "Log.h"
 #include "Renderer.h"
@@ -30,14 +29,14 @@ void SystemView::populate()
 {
 	mEntries.clear();
 
-	for(auto it = SystemData::sSystemVector.cbegin(); it != SystemData::sSystemVector.cend(); it++)
+	for(auto it = SystemData::sSystemVector.begin(); it != SystemData::sSystemVector.end(); it++)
 	{
 		const std::shared_ptr<ThemeData>& theme = (*it)->getTheme();
 
 		if(mViewNeedsReload)
 			getViewElements(theme);
 
-		if((*it)->isVisible())
+		if((*it)->getDisplayedGameCount() > 0)
 		{
 			Entry e;
 			e.name = (*it)->getName();
@@ -55,7 +54,6 @@ void SystemView::populate()
 					ImageComponent* logo = new ImageComponent(mWindow, false, false);
 					logo->setMaxSize(mCarousel.logoSize * mCarousel.logoScale);
 					logo->applyTheme(theme, "system", "logo", ThemeFlags::PATH | ThemeFlags::COLOR);
-					logo->setRotateByTargetSize(true);
 					e.data.logo = std::shared_ptr<GuiComponent>(logo);
 				}
 			}
@@ -68,17 +66,13 @@ void SystemView::populate()
 					0x000000FF,
 					ALIGN_CENTER);
 				text->setSize(mCarousel.logoSize * mCarousel.logoScale);
-				text->applyTheme((*it)->getTheme(), "system", "logoText", ThemeFlags::FONT_PATH | ThemeFlags::FONT_SIZE | ThemeFlags::COLOR | ThemeFlags::FORCE_UPPERCASE | ThemeFlags::LINE_SPACING | ThemeFlags::TEXT);
+				text->applyTheme((*it)->getTheme(), "system", "logoText", ThemeFlags::FONT_PATH | ThemeFlags::FONT_SIZE | ThemeFlags::COLOR | ThemeFlags::FORCE_UPPERCASE);
 				e.data.logo = std::shared_ptr<GuiComponent>(text);
 
 				if (mCarousel.type == VERTICAL || mCarousel.type == VERTICAL_WHEEL)
-				{
 					text->setHorizontalAlignment(mCarousel.logoAlignment);
-					text->setVerticalAlignment(ALIGN_CENTER);
-				} else {
-					text->setHorizontalAlignment(ALIGN_CENTER);
+				else
 					text->setVerticalAlignment(mCarousel.logoAlignment);
-				}
 			}
 
 			if (mCarousel.type == VERTICAL || mCarousel.type == VERTICAL_WHEEL)
@@ -119,7 +113,7 @@ void SystemView::populate()
 	if (mEntries.size() == 0)
 	{
 		// Something is wrong, there is not a single system to show, check if UI mode is not full
-		if (!UIModeController::getInstance()->isUIModeFull())
+		if (!ViewController::get()->isUIModeFull())
 		{
 			Settings::getInstance()->setString("UIMode", "Full");
 			mWindow->pushGui(new GuiMsgBox(mWindow, "The selected UI mode has nothing to show,\n returning to UI mode: FULL", "OK", nullptr));
@@ -150,26 +144,25 @@ bool SystemView::input(InputConfig* config, Input input)
 		{
 		case VERTICAL:
 		case VERTICAL_WHEEL:
-			if (config->isMappedLike("up", input))
+			if (config->isMappedTo("up", input))
 			{
 				listInput(-1);
 				return true;
 			}
-			if (config->isMappedLike("down", input))
+			if (config->isMappedTo("down", input))
 			{
 				listInput(1);
 				return true;
 			}
 			break;
 		case HORIZONTAL:
-		case HORIZONTAL_WHEEL:
 		default:
-			if (config->isMappedLike("left", input))
+			if (config->isMappedTo("left", input))
 			{
 				listInput(-1);
 				return true;
 			}
-			if (config->isMappedLike("right", input))
+			if (config->isMappedTo("right", input))
 			{
 				listInput(1);
 				return true;
@@ -191,12 +184,12 @@ bool SystemView::input(InputConfig* config, Input input)
 			return true;
 		}
 	}else{
-		if(config->isMappedLike("left", input) ||
-			config->isMappedLike("right", input) ||
-			config->isMappedLike("up", input) ||
-			config->isMappedLike("down", input))
+		if(config->isMappedTo("left", input) ||
+			config->isMappedTo("right", input) ||
+			config->isMappedTo("up", input) ||
+			config->isMappedTo("down", input))
 			listInput(0);
-		if(!UIModeController::getInstance()->isUIModeKid() && config->isMappedTo("select", input) && Settings::getInstance()->getBool("ScreenSaverControls"))
+		if(config->isMappedTo("select", input) && Settings::getInstance()->getBool("ScreenSaverControls"))
 		{
 			mWindow->startScreenSaver();
 			mWindow->renderScreenSaver();
@@ -213,7 +206,7 @@ void SystemView::update(int deltaTime)
 	GuiComponent::update(deltaTime);
 }
 
-void SystemView::onCursorChanged(const CursorState& /*state*/)
+void SystemView::onCursorChanged(const CursorState& state)
 {
 	// update help style
 	updateHelpPrompts();
@@ -247,7 +240,7 @@ void SystemView::onCursorChanged(const CursorState& /*state*/)
 	Animation* infoFadeOut = new LambdaAnimation(
 		[infoStartOpacity, this] (float t)
 	{
-		mSystemInfo.setOpacity((unsigned char)(Math::lerp(infoStartOpacity, 0.f, t) * 255));
+		mSystemInfo.setOpacity((unsigned char)(lerp<float>(infoStartOpacity, 0.f, t) * 255));
 	}, (int)(infoStartOpacity * (goFast ? 10 : 150)));
 
 	unsigned int gameCount = getSelected()->getDisplayedGameCount();
@@ -267,7 +260,7 @@ void SystemView::onCursorChanged(const CursorState& /*state*/)
 	Animation* infoFadeIn = new LambdaAnimation(
 		[this](float t)
 	{
-		mSystemInfo.setOpacity((unsigned char)(Math::lerp(0.f, 1.f, t) * 255));
+		mSystemInfo.setOpacity((unsigned char)(lerp<float>(0.f, 1.f, t) * 255));
 	}, goFast ? 10 : 300);
 
 	// wait 600ms to fade in
@@ -286,7 +279,7 @@ void SystemView::onCursorChanged(const CursorState& /*state*/)
 			[this, startExtrasFade, startPos, endPos, posMax, move_carousel](float t)
 		{
 			t -= 1;
-			float f = Math::lerp(startPos, endPos, t*t*t + 1);
+			float f = lerp<float>(startPos, endPos, t*t*t + 1);
 			if(f < 0)
 				f += posMax;
 			if(f >= posMax)
@@ -296,11 +289,11 @@ void SystemView::onCursorChanged(const CursorState& /*state*/)
 
 			t += 1;
 			if(t < 0.3f)
-				this->mExtrasFadeOpacity = Math::lerp(0.0f, 1.0f, t / 0.3f + startExtrasFade);
+				this->mExtrasFadeOpacity = lerp<float>(0.0f, 1.0f, t / 0.3f + startExtrasFade);
 			else if(t < 0.7f)
 				this->mExtrasFadeOpacity = 1.0f;
 			else
-				this->mExtrasFadeOpacity = Math::lerp(1.0f, 0.0f, (t - 0.7f) / 0.3f);
+				this->mExtrasFadeOpacity = lerp<float>(1.0f, 0.0f, (t - 0.7f) / 0.3f);
 
 			if(t > 0.5f)
 				this->mExtrasCamOffset = endPos;
@@ -312,7 +305,7 @@ void SystemView::onCursorChanged(const CursorState& /*state*/)
 			[this, startPos, endPos, posMax, move_carousel](float t)
 		{
 			t -= 1;
-			float f = Math::lerp(startPos, endPos, t*t*t + 1);
+			float f = lerp<float>(startPos, endPos, t*t*t + 1);
 			if(f < 0)
 				f += posMax;
 			if(f >= posMax)
@@ -327,7 +320,7 @@ void SystemView::onCursorChanged(const CursorState& /*state*/)
 			[this, startPos, endPos, posMax, move_carousel ](float t)
 		{
 			t -= 1;
-			float f = Math::lerp(startPos, endPos, t*t*t + 1);
+			float f = lerp<float>(startPos, endPos, t*t*t + 1);
 			if(f < 0)
 				f += posMax;
 			if(f >= posMax)
@@ -375,14 +368,14 @@ void SystemView::render(const Transform4x4f& parentTrans)
 std::vector<HelpPrompt> SystemView::getHelpPrompts()
 {
 	std::vector<HelpPrompt> prompts;
-	if (mCarousel.type == VERTICAL || mCarousel.type == VERTICAL_WHEEL)
+	if (mCarousel.type == VERTICAL)
 		prompts.push_back(HelpPrompt("up/down", "choose"));
 	else
 		prompts.push_back(HelpPrompt("left/right", "choose"));
 	prompts.push_back(HelpPrompt("a", "select"));
 	prompts.push_back(HelpPrompt("x", "random"));
 
-	if (!UIModeController::getInstance()->isUIModeKid() && Settings::getInstance()->getBool("ScreenSaverControls"))
+	if (Settings::getInstance()->getBool("ScreenSaverControls"))
 		prompts.push_back(HelpPrompt("select", "launch screensaver"));
 
 	return prompts;
@@ -395,7 +388,7 @@ HelpStyle SystemView::getHelpStyle()
 	return style;
 }
 
-void  SystemView::onThemeChanged(const std::shared_ptr<ThemeData>& /*theme*/)
+void  SystemView::onThemeChanged(const std::shared_ptr<ThemeData>& theme)
 {
 	LOG(LogDebug) << "SystemView::onThemeChanged()";
 	mViewNeedsReload = true;
@@ -464,15 +457,6 @@ void SystemView::renderCarousel(const Transform4x4f& trans)
 			else
 				xOff = (mCarousel.size.x() - mCarousel.logoSize.x()) / 2;
 			break;
-		case HORIZONTAL_WHEEL:
-			xOff = (mCarousel.size.x() - mCarousel.logoSize.x()) / 2 - (mCamOffset * logoSpacing[1]);
-			if (mCarousel.logoAlignment == ALIGN_TOP)
-				yOff = mCarousel.logoSize.y() / 10;
-			else if (mCarousel.logoAlignment == ALIGN_BOTTOM)
-				yOff = mCarousel.size.y() - (mCarousel.logoSize.y() * 1.1f);
-			else
-				yOff = (mCarousel.size.y() - mCarousel.logoSize.y()) / 2;
-			break;
 		case HORIZONTAL:
 		default:
 			logoSpacing[0] = ((mCarousel.size.x() - (mCarousel.logoSize.x() * mCarousel.maxLogoCount)) / (mCarousel.maxLogoCount)) + mCarousel.logoSize.x();
@@ -488,7 +472,7 @@ void SystemView::renderCarousel(const Transform4x4f& trans)
 	}
 
 	int center = (int)(mCamOffset);
-	int logoCount = Math::min(mCarousel.maxLogoCount, (int)mEntries.size());
+	int logoCount = std::min(mCarousel.maxLogoCount, (int)mEntries.size());
 
 	// Adding texture loading buffers depending on scrolling speed and status
 	int bufferIndex = getScrollingVelocity() + 1;
@@ -504,9 +488,9 @@ void SystemView::renderCarousel(const Transform4x4f& trans)
 	{
 		int index = i;
 		while (index < 0)
-			index += (int)mEntries.size();
+			index += mEntries.size();
 		while (index >= (int)mEntries.size())
-			index -= (int)mEntries.size();
+			index -= mEntries.size();
 
 		Transform4x4f logoTrans = carouselTrans;
 		logoTrans.translate(Vector3f(i * logoSpacing[0] + xOff, i * logoSpacing[1] + yOff, 0));
@@ -514,19 +498,19 @@ void SystemView::renderCarousel(const Transform4x4f& trans)
 		float distance = i - mCamOffset;
 
 		float scale = 1.0f + ((mCarousel.logoScale - 1.0f) * (1.0f - fabs(distance)));
-		scale = Math::min(mCarousel.logoScale, Math::max(1.0f, scale));
+		scale = std::min(mCarousel.logoScale, std::max(1.0f, scale));
 		scale /= mCarousel.logoScale;
 
-		int opacity = (int)Math::round(0x80 + ((0xFF - 0x80) * (1.0f - fabs(distance))));
-		opacity = Math::max((int) 0x80, opacity);
+		int opacity = (int) round(0x80 + ((0xFF - 0x80) * (1.0f - fabs(distance))));
+		opacity = std::max((int) 0x80, opacity);
 
 		const std::shared_ptr<GuiComponent> &comp = mEntries.at(index).data.logo;
-		if (mCarousel.type == VERTICAL_WHEEL || mCarousel.type == HORIZONTAL_WHEEL) {
+		if (mCarousel.type == VERTICAL_WHEEL) {
 			comp->setRotationDegrees(mCarousel.logoRotation * distance);
 			comp->setRotationOrigin(mCarousel.logoRotationOrigin);
 		}
 		comp->setScale(scale);
-		comp->setOpacity((unsigned char)opacity);
+		comp->setOpacity(opacity);
 		comp->render(logoTrans);
 	}
 	Renderer::popClipRect();
@@ -552,15 +536,15 @@ void SystemView::renderExtras(const Transform4x4f& trans, float lower, float upp
 	{
 		int index = i;
 		while (index < 0)
-			index += (int)mEntries.size();
+			index += mEntries.size();
 		while (index >= (int)mEntries.size())
-			index -= (int)mEntries.size();
+			index -= mEntries.size();
 
 		//Only render selected system when not showing
 		if (mShowing || index == mCursor)
 		{
 			Transform4x4f extrasTrans = trans;
-			if (mCarousel.type == HORIZONTAL || mCarousel.type == HORIZONTAL_WHEEL)
+			if (mCarousel.type == HORIZONTAL)
 				extrasTrans.translate(Vector3f((i - mExtrasCamOffset) * mSize.x(), 0, 0));
 			else
 				extrasTrans.translate(Vector3f(0, (i - mExtrasCamOffset) * mSize.y(), 0));
@@ -631,8 +615,6 @@ void SystemView::getCarouselFromTheme(const ThemeData::ThemeElement* elem)
 			mCarousel.type = VERTICAL;
 		else if (!(elem->get<std::string>("type").compare("vertical_wheel")))
 			mCarousel.type = VERTICAL_WHEEL;
-		else if (!(elem->get<std::string>("type").compare("horizontal_wheel")))
-			mCarousel.type = HORIZONTAL_WHEEL;
 		else
 			mCarousel.type = HORIZONTAL;
 	}
@@ -649,12 +631,12 @@ void SystemView::getCarouselFromTheme(const ThemeData::ThemeElement* elem)
 	if (elem->has("logoSize"))
 		mCarousel.logoSize = elem->get<Vector2f>("logoSize") * mSize;
 	if (elem->has("maxLogoCount"))
-		mCarousel.maxLogoCount = (int)Math::round(elem->get<float>("maxLogoCount"));
+		mCarousel.maxLogoCount = (int) std::round(elem->get<float>("maxLogoCount"));
 	if (elem->has("zIndex"))
 		mCarousel.zIndex = elem->get<float>("zIndex");
 	if (elem->has("logoRotation"))
 		mCarousel.logoRotation = elem->get<float>("logoRotation");
-	if (elem->has("logoRotationOrigin"))
+    if (elem->has("logoRotationOrigin"))
 		mCarousel.logoRotationOrigin = elem->get<Vector2f>("logoRotationOrigin");
 	if (elem->has("logoAlignment"))
 	{

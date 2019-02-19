@@ -25,7 +25,7 @@ void GuiSettings::save()
 	if(!mSaveFuncs.size())
 		return;
 
-	for(auto it = mSaveFuncs.cbegin(); it != mSaveFuncs.cend(); it++)
+	for(auto it = mSaveFuncs.begin(); it != mSaveFuncs.end(); it++)
 		(*it)();
 
 	Settings::getInstance()->saveFile();

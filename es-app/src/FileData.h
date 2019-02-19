@@ -2,8 +2,8 @@
 #ifndef ES_APP_FILE_DATA_H
 #define ES_APP_FILE_DATA_H
 
-#include "utils/FileSystemUtil.h"
 #include "MetaData.h"
+#include <boost/filesystem/path.hpp>
 #include <unordered_map>
 
 class SystemData;
@@ -33,13 +33,12 @@ FileType stringToFileType(const char* str);
 class FileData
 {
 public:
-	FileData(FileType type, const std::string& path, SystemEnvironmentData* envData, SystemData* system);
+	FileData(FileType type, const boost::filesystem::path& path, SystemEnvironmentData* envData, SystemData* system);
 	virtual ~FileData();
 
 	virtual const std::string& getName();
-	virtual const std::string& getSortName();
 	inline FileType getType() const { return mType; }
-	inline const std::string& getPath() const { return mPath; }
+	inline const boost::filesystem::path& getPath() const { return mPath; }
 	inline FileData* getParent() const { return mParent; }
 	inline const std::unordered_map<std::string, FileData*>& getChildrenByFilename() const { return mChildrenByFilename; }
 	inline const std::vector<FileData*>& getChildren() const { return mChildren; }
@@ -61,9 +60,8 @@ public:
 	virtual inline void refreshMetadata() { return; };
 
 	virtual std::string getKey();
-	const bool isArcadeAsset();
-	inline std::string getFullPath() { return getPath(); };
-	inline std::string getFileName() { return Utils::FileSystem::getFileName(getPath()); };
+	inline std::string getFullPath() { return getPath().string(); };
+	inline std::string getFileName() { return getPath().filename().string(); };
 	virtual FileData* getSourceFileData();
 	inline std::string getSystemName() const { return mSystemName; };
 
@@ -97,7 +95,7 @@ protected:
 
 private:
 	FileType mType;
-	std::string mPath;
+	boost::filesystem::path mPath;
 	SystemEnvironmentData* mEnvData;
 	SystemData* mSystem;
 	std::unordered_map<std::string,FileData*> mChildrenByFilename;

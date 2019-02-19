@@ -55,7 +55,7 @@ bool GuiFastSelect::input(InputConfig* config, Input input)
 		return true;
 	}
 
-	if(config->isMappedLike("up", input))
+	if(config->isMappedTo("up", input))
 	{
 		if(input.value != 0)
 			setScrollDir(-1);
@@ -63,7 +63,7 @@ bool GuiFastSelect::input(InputConfig* config, Input input)
 			setScrollDir(0);
 
 		return true;
-	}else if(config->isMappedLike("down", input))
+	}else if(config->isMappedTo("down", input))
 	{
 		if(input.value != 0)
 			setScrollDir(1);
@@ -71,16 +71,16 @@ bool GuiFastSelect::input(InputConfig* config, Input input)
 			setScrollDir(0);
 
 		return true;
-	}else if(config->isMappedLike("left", input) && input.value != 0)
+	}else if(config->isMappedTo("left", input) && input.value != 0)
 	{
 		mSortId = (mSortId + 1) % FileSorts::SortTypes.size();
 		updateSortText();
 		return true;
-	}else if(config->isMappedLike("right", input) && input.value != 0)
+	}else if(config->isMappedTo("right", input) && input.value != 0)
 	{
 		mSortId--;
 		if(mSortId < 0)
-			mSortId += (int)FileSorts::SortTypes.size();
+			mSortId += FileSorts::SortTypes.size();
 
 		updateSortText();
 		return true;
@@ -116,7 +116,7 @@ void GuiFastSelect::scroll()
 	mLetterId += mScrollDir;
 	if(mLetterId < 0)
 		mLetterId += LETTERS.length();
-	else if(mLetterId >= LETTERS.length())
+	else if(mLetterId >= (int)LETTERS.length())
 		mLetterId -= LETTERS.length();
 
 	mLetterText.setText(LETTERS.substr(mLetterId, 1));

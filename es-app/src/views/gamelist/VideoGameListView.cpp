@@ -5,11 +5,11 @@
 #include "components/VideoPlayerComponent.h"
 #endif
 #include "components/VideoVlcComponent.h"
-#include "utils/FileSystemUtil.h"
 #include "views/ViewController.h"
 #ifdef _RPI_
 #include "Settings.h"
 #endif
+#include <boost/filesystem/operations.hpp>
 
 VideoGameListView::VideoGameListView(Window* window, FileData* root) :
 	BasicGameListView(window, root),
@@ -23,8 +23,7 @@ VideoGameListView::VideoGameListView(Window* window, FileData* root) :
 	mLblGenre(window), mLblPlayers(window), mLblLastPlayed(window), mLblPlayCount(window),
 
 	mRating(window), mReleaseDate(window), mDeveloper(window), mPublisher(window),
-	mGenre(window), mPlayers(window), mLastPlayed(window), mPlayCount(window),
-	mName(window)
+	mGenre(window), mPlayers(window), mLastPlayed(window), mPlayCount(window)
 {
 	const float padding = 0.01f;
 
@@ -41,7 +40,7 @@ VideoGameListView::VideoGameListView(Window* window, FileData* root) :
 	mList.setPosition(mSize.x() * (0.50f + padding), mList.getPosition().y());
 	mList.setSize(mSize.x() * (0.50f - padding), mList.getSize().y());
 	mList.setAlignment(TextListComponent<FileData*>::ALIGN_LEFT);
-	mList.setCursorChangedCallback([&](const CursorState& /*state*/) { updateInfoPanel(); });
+	mList.setCursorChangedCallback([&](const CursorState& state) { updateInfoPanel(); });
 
 	// Marquee
 	mMarquee.setOrigin(0.5f, 0.5f);
@@ -86,18 +85,11 @@ VideoGameListView::VideoGameListView(Window* window, FileData* root) :
 	addChild(&mPlayers);
 	mLblLastPlayed.setText("Last played: ");
 	addChild(&mLblLastPlayed);
-	mLastPlayed.setDisplayRelative(true);
+	mLastPlayed.setDisplayMode(DateTimeComponent::DISP_RELATIVE_TO_NOW);
 	addChild(&mLastPlayed);
 	mLblPlayCount.setText("Times played: ");
 	addChild(&mLblPlayCount);
 	addChild(&mPlayCount);
-
-	mName.setPosition(mSize.x(), mSize.y());
-	mName.setDefaultZIndex(40);
-	mName.setColor(0xAAAAAAFF);
-	mName.setFont(Font::get(FONT_SIZE_MEDIUM));
-	mName.setHorizontalAlignment(ALIGN_CENTER);
-	addChild(&mName);
 
 	mDescContainer.setPosition(mSize.x() * padding, mSize.y() * 0.65f);
 	mDescContainer.setSize(mSize.x() * (0.50f - 2*padding), mSize.y() - mDescContainer.getPosition().y());
@@ -126,7 +118,6 @@ void VideoGameListView::onThemeChanged(const std::shared_ptr<ThemeData>& theme)
 	mMarquee.applyTheme(theme, getName(), "md_marquee", POSITION | ThemeFlags::SIZE | Z_INDEX | ROTATION);
 	mImage.applyTheme(theme, getName(), "md_image", POSITION | ThemeFlags::SIZE | Z_INDEX | ROTATION);
 	mVideo->applyTheme(theme, getName(), "md_video", POSITION | ThemeFlags::SIZE | ThemeFlags::DELAY | Z_INDEX | ROTATION);
-	mName.applyTheme(theme, getName(), "md_name", ALL);
 
 	initMDLabels();
 	std::vector<TextComponent*> labels = getMDLabels();
@@ -167,7 +158,7 @@ void VideoGameListView::initMDLabels()
 	std::vector<TextComponent*> components = getMDLabels();
 
 	const unsigned int colCount = 2;
-	const unsigned int rowCount = (int)(components.size() / 2);
+	const unsigned int rowCount = components.size() / 2;
 
 	Vector3f start(mSize.x() * 0.01f, mSize.y() * 0.625f, 0.0f);
 
@@ -233,7 +224,7 @@ void VideoGameListView::updateInfoPanel()
 {
 	FileData* file = (mList.size() == 0 || mList.isScrolling()) ? NULL : mList.getSelected();
 
-	Utils::FileSystem::removeFile(getTitlePath());
+	boost::filesystem::remove(getTitlePath().c_str());
 
 	bool fadingOut;
 	if(file == NULL)
@@ -254,7 +245,7 @@ void VideoGameListView::updateInfoPanel()
 
 		mVideo->setImage(file->getThumbnailPath());
 		mMarquee.setImage(file->getMarqueePath());
-		mImage.setImage(file->getImagePath());
+		mImage.setImage(file->getThumbnailPath());
 
 		mDescription.setText(file->metadata.get("desc"));
 		mDescContainer.reset();
@@ -265,7 +256,6 @@ void VideoGameListView::updateInfoPanel()
 		mPublisher.setValue(file->metadata.get("publisher"));
 		mGenre.setValue(file->metadata.get("genre"));
 		mPlayers.setValue(file->metadata.get("players"));
-		mName.setValue(file->metadata.get("name"));
 
 		if(file->getType() == GAME)
 		{
@@ -281,11 +271,10 @@ void VideoGameListView::updateInfoPanel()
 	comps.push_back(mVideo);
 	comps.push_back(&mDescription);
 	comps.push_back(&mImage);
-	comps.push_back(&mName);
 	std::vector<TextComponent*> labels = getMDLabels();
-	comps.insert(comps.cend(), labels.cbegin(), labels.cend());
+	comps.insert(comps.end(), labels.begin(), labels.end());
 
-	for(auto it = comps.cbegin(); it != comps.cend(); it++)
+	for(auto it = comps.begin(); it != comps.end(); it++)
 	{
 		GuiComponent* comp = *it;
 		// an animation is playing
@@ -297,7 +286,7 @@ void VideoGameListView::updateInfoPanel()
 		{
 			auto func = [comp](float t)
 			{
-				comp->setOpacity((unsigned char)(Math::lerp(0.0f, 1.0f, t)*255));
+				comp->setOpacity((unsigned char)(lerp<float>(0.0f, 1.0f, t)*255));
 			};
 			comp->setAnimation(new LambdaAnimation(func, 150), 0, nullptr, fadingOut);
 		}

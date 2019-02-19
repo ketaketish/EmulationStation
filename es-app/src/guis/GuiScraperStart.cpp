@@ -23,7 +23,7 @@ GuiScraperStart::GuiScraperStart(Window* window) : GuiComponent(window),
 
 	//add systems (all with a platformid specified selected)
 	mSystems = std::make_shared< OptionListComponent<SystemData*> >(mWindow, "SCRAPE THESE SYSTEMS", true);
-	for(auto it = SystemData::sSystemVector.cbegin(); it != SystemData::sSystemVector.cend(); it++)
+	for(auto it = SystemData::sSystemVector.begin(); it != SystemData::sSystemVector.end(); it++)
 	{
 		if(!(*it)->hasPlatformId(PlatformIds::PLATFORM_IGNORE))
 			mSystems->add((*it)->getFullName(), *it, !(*it)->getPlatformIds().empty());
@@ -43,12 +43,12 @@ GuiScraperStart::GuiScraperStart(Window* window) : GuiComponent(window),
 void GuiScraperStart::pressedStart()
 {
 	std::vector<SystemData*> sys = mSystems->getSelectedObjects();
-	for(auto it = sys.cbegin(); it != sys.cend(); it++)
+	for(auto it = sys.begin(); it != sys.end(); it++)
 	{
 		if((*it)->getPlatformIds().empty())
 		{
 			mWindow->pushGui(new GuiMsgBox(mWindow, 
-				Utils::String::toUpper("Warning: some of your selected systems do not have a platform set. Results may be even more inaccurate than usual!\nContinue anyway?"), 
+				strToUpper("Warning: some of your selected systems do not have a platform set. Results may be even more inaccurate than usual!\nContinue anyway?"), 
 				"YES", std::bind(&GuiScraperStart::start, this), 
 				"NO", nullptr));
 			return;
@@ -76,10 +76,10 @@ void GuiScraperStart::start()
 std::queue<ScraperSearchParams> GuiScraperStart::getSearches(std::vector<SystemData*> systems, GameFilterFunc selector)
 {
 	std::queue<ScraperSearchParams> queue;
-	for(auto sys = systems.cbegin(); sys != systems.cend(); sys++)
+	for(auto sys = systems.begin(); sys != systems.end(); sys++)
 	{
 		std::vector<FileData*> games = (*sys)->getRootFolder()->getFilesRecursive(GAME);
-		for(auto game = games.cbegin(); game != games.cend(); game++)
+		for(auto game = games.begin(); game != games.end(); game++)
 		{
 			if(selector((*sys), (*game)))
 			{

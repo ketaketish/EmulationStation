@@ -1,6 +1,5 @@
 #include "SystemData.h"
 
-#include "utils/FileSystemUtil.h"
 #include "CollectionSystemManager.h"
 #include "FileFilterIndex.h"
 #include "FileSorts.h"
@@ -9,14 +8,15 @@
 #include "platform.h"
 #include "Settings.h"
 #include "ThemeData.h"
-#include "views/UIModeController.h"
-#include <pugixml/src/pugixml.hpp>
+#include <boost/filesystem/operations.hpp>
 #include <fstream>
 #ifdef WIN32
 #include <Windows.h>
 #endif
 
 std::vector<SystemData*> SystemData::sSystemVector;
+
+namespace fs = boost::filesystem;
 
 SystemData::SystemData(const std::string& name, const std::string& fullName, SystemEnvironmentData* envData, const std::string& themeFolder, bool CollectionSystem) :
 	mName(name), mFullName(fullName), mEnvData(envData), mThemeFolder(themeFolder), mIsCollectionSystem(CollectionSystem), mIsGameSystem(true)
@@ -68,63 +68,74 @@ void SystemData::setIsGameSystemStatus()
 	mIsGameSystem = (mName != "retropie");
 }
 
+// test to see if a file is hidden
+bool isHidden(const fs::path &filePath)
+{
+#ifdef WIN32
+	const DWORD Attributes = GetFileAttributes(filePath.generic_string().c_str());
+	return (Attributes != INVALID_FILE_ATTRIBUTES) && (Attributes & FILE_ATTRIBUTE_HIDDEN);
+#else
+	fs::path::string_type fileName = filePath.filename().string();
+	return fileName[0] == '.';
+#endif
+}
+
 void SystemData::populateFolder(FileData* folder)
 {
-	const std::string& folderPath = folder->getPath();
-	if(!Utils::FileSystem::isDirectory(folderPath))
+	const fs::path& folderPath = folder->getPath();
+	if(!fs::is_directory(folderPath))
 	{
 		LOG(LogWarning) << "Error - folder with path \"" << folderPath << "\" is not a directory!";
 		return;
 	}
 
+	const std::string folderStr = folderPath.generic_string();
+
 	//make sure that this isn't a symlink to a thing we already have
-	if(Utils::FileSystem::isSymlink(folderPath))
+	if(fs::is_symlink(folderPath))
 	{
 		//if this symlink resolves to somewhere that's at the beginning of our path, it's gonna recurse
-		if(folderPath.find(Utils::FileSystem::getCanonicalPath(folderPath)) == 0)
+		if(folderStr.find(fs::canonical(folderPath).generic_string()) == 0)
 		{
 			LOG(LogWarning) << "Skipping infinitely recursive symlink \"" << folderPath << "\"";
 			return;
 		}
 	}
 
-	std::string filePath;
+	fs::path filePath;
 	std::string extension;
 	bool isGame;
 	bool showHidden = Settings::getInstance()->getBool("ShowHiddenFiles");
-	Utils::FileSystem::stringList dirContent = Utils::FileSystem::getDirContent(folderPath);
-	for(Utils::FileSystem::stringList::const_iterator it = dirContent.cbegin(); it != dirContent.cend(); ++it)
+	for(fs::directory_iterator end, dir(folderPath); dir != end; ++dir)
 	{
-		filePath = *it;
+		filePath = (*dir).path();
 
-		// skip hidden files and folders
-		if(!showHidden && Utils::FileSystem::isHidden(filePath))
+		if(filePath.stem().empty())
 			continue;
 
 		//this is a little complicated because we allow a list of extensions to be defined (delimited with a space)
 		//we first get the extension of the file itself:
-		extension = Utils::FileSystem::getExtension(filePath);
+		extension = filePath.extension().string();
 
 		//fyi, folders *can* also match the extension and be added as games - this is mostly just to support higan
 		//see issue #75: https://github.com/Aloshi/EmulationStation/issues/75
 
 		isGame = false;
-		if(std::find(mEnvData->mSearchExtensions.cbegin(), mEnvData->mSearchExtensions.cend(), extension) != mEnvData->mSearchExtensions.cend())
+		if(std::find(mEnvData->mSearchExtensions.begin(), mEnvData->mSearchExtensions.end(), extension) != mEnvData->mSearchExtensions.end())
 		{
-			FileData* newGame = new FileData(GAME, filePath, mEnvData, this);
+			// skip hidden files
+			if(!showHidden && isHidden(filePath))
+				continue;
 
-			// preventing new arcade assets to be added
-			if(!newGame->isArcadeAsset())
-			{
-				folder->addChild(newGame);
-				isGame = true;
-			}
+			FileData* newGame = new FileData(GAME, filePath.generic_string(), mEnvData, this);
+			folder->addChild(newGame);
+			isGame = true;
 		}
 
 		//add directories that also do not match an extension as folders
-		if(!isGame && Utils::FileSystem::isDirectory(filePath))
+		if(!isGame && fs::is_directory(filePath))
 		{
-			FileData* newFolder = new FileData(FOLDER, filePath, mEnvData, this);
+			FileData* newFolder = new FileData(FOLDER, filePath.generic_string(), mEnvData, this);
 			populateFolder(newFolder);
 
 			//ignore folders that do not contain games
@@ -140,7 +151,7 @@ void SystemData::indexAllGameFilters(const FileData* folder)
 {
 	const std::vector<FileData*>& children = folder->getChildren();
 
-	for(std::vector<FileData*>::const_iterator it = children.cbegin(); it != children.cend(); ++it)
+	for(std::vector<FileData*>::const_iterator it = children.begin(); it != children.end(); ++it)
 	{
 		switch((*it)->getType())
 		{
@@ -176,7 +187,7 @@ bool SystemData::loadConfig()
 
 	LOG(LogInfo) << "Loading system config file " << path << "...";
 
-	if(!Utils::FileSystem::exists(path))
+	if(!fs::exists(path))
 	{
 		LOG(LogError) << "es_systems.cfg file does not exist!";
 		writeExampleConfig(getConfigPath(true));
@@ -219,7 +230,7 @@ bool SystemData::loadConfig()
 		const char* platformList = system.child("platform").text().get();
 		std::vector<std::string> platformStrs = readList(platformList);
 		std::vector<PlatformIds::PlatformId> platformIds;
-		for(auto it = platformStrs.cbegin(); it != platformStrs.cend(); it++)
+		for(auto it = platformStrs.begin(); it != platformStrs.end(); it++)
 		{
 			const char* str = it->c_str();
 			PlatformIds::PlatformId platformId = PlatformIds::getPlatformId(str);
@@ -250,13 +261,14 @@ bool SystemData::loadConfig()
 		}
 
 		//convert path to generic directory seperators
-		path = Utils::FileSystem::getGenericPath(path);
+		boost::filesystem::path genericPath(path);
+		path = genericPath.generic_string();
 
 		//expand home symbol if the startpath contains ~
 		if(path[0] == '~')
 		{
 			path.erase(0, 1);
-			path.insert(0, Utils::FileSystem::getHomePath());
+			path.insert(0, getHomePath());
 		}
 
 		//create the system runtime environment data
@@ -337,18 +349,11 @@ void SystemData::deleteSystems()
 
 std::string SystemData::getConfigPath(bool forWrite)
 {
-	std::string path = Utils::FileSystem::getHomePath() + "/.emulationstation/es_systems.cfg";
-	if(forWrite || Utils::FileSystem::exists(path))
-		return path;
+	fs::path path = getHomePath() + "/.emulationstation/es_systems.cfg";
+	if(forWrite || fs::exists(path))
+		return path.generic_string();
 
 	return "/etc/emulationstation/es_systems.cfg";
-}
-
-bool SystemData::isVisible()
-{
-   return (getDisplayedGameCount() > 0 || 
-           (UIModeController::getInstance()->isUIModeFull() && mIsCollectionSystem) ||
-           (mIsCollectionSystem && mName == "favorites"));
 }
 
 SystemData* SystemData::getNext() const
@@ -357,9 +362,9 @@ SystemData* SystemData::getNext() const
 
 	do {
 		it++;
-		if (it == sSystemVector.cend())
-			it = sSystemVector.cbegin();
-	} while (!(*it)->isVisible());
+		if (it == sSystemVector.end())
+			it = sSystemVector.begin();
+	} while ((*it)->getDisplayedGameCount() == 0); 
 	// as we are starting in a valid gamelistview, this will always succeed, even if we have to come full circle.
 
 	return *it;
@@ -367,13 +372,12 @@ SystemData* SystemData::getNext() const
 
 SystemData* SystemData::getPrev() const
 {
-	std::vector<SystemData*>::const_reverse_iterator it = getRevIterator();
-
+	auto it = getRevIterator();
 	do {
 		it++;
-		if (it == sSystemVector.crend())
-			it = sSystemVector.crbegin();
-	} while (!(*it)->isVisible());
+		if (it == sSystemVector.rend())
+			it = sSystemVector.rbegin();
+	} while ((*it)->getDisplayedGameCount() == 0);
 	// as we are starting in a valid gamelistview, this will always succeed, even if we have to come full circle.
 
 	return *it;
@@ -381,17 +385,17 @@ SystemData* SystemData::getPrev() const
 
 std::string SystemData::getGamelistPath(bool forWrite) const
 {
-	std::string filePath;
+	fs::path filePath;
 
-	filePath = mRootFolder->getPath() + "/gamelist.xml";
-	if(Utils::FileSystem::exists(filePath))
-		return filePath;
+	filePath = mRootFolder->getPath() / "gamelist.xml";
+	if(fs::exists(filePath))
+		return filePath.generic_string();
 
-	filePath = Utils::FileSystem::getHomePath() + "/.emulationstation/gamelists/" + mName + "/gamelist.xml";
+	filePath = getHomePath() + "/.emulationstation/gamelists/" + mName + "/gamelist.xml";
 	if(forWrite) // make sure the directory exists if we're going to write to it, or crashes will happen
-		Utils::FileSystem::createDirectory(Utils::FileSystem::getParent(filePath));
-	if(forWrite || Utils::FileSystem::exists(filePath))
-		return filePath;
+		fs::create_directories(filePath.parent_path());
+	if(forWrite || fs::exists(filePath))
+		return filePath.generic_string();
 
 	return "/etc/emulationstation/gamelists/" + mName + "/gamelist.xml";
 }
@@ -404,45 +408,45 @@ std::string SystemData::getThemePath() const
 	// 3. default system theme from currently selected theme set [CURRENT_THEME_PATH]/theme.xml
 
 	// first, check game folder
-	std::string localThemePath = mRootFolder->getPath() + "/theme.xml";
-	if(Utils::FileSystem::exists(localThemePath))
-		return localThemePath;
+	fs::path localThemePath = mRootFolder->getPath() / "theme.xml";
+	if(fs::exists(localThemePath))
+		return localThemePath.generic_string();
 
 	// not in game folder, try system theme in theme sets
 	localThemePath = ThemeData::getThemeFromCurrentSet(mThemeFolder);
 
-	if (Utils::FileSystem::exists(localThemePath))
-		return localThemePath;
+	if (fs::exists(localThemePath))
+		return localThemePath.generic_string();
 
 	// not system theme, try default system theme in theme set
-	localThemePath = Utils::FileSystem::getParent(Utils::FileSystem::getParent(localThemePath)) + "/theme.xml";
+	localThemePath = localThemePath.parent_path().parent_path() / "theme.xml";
 
-	return localThemePath;
+	return localThemePath.generic_string();
 }
 
 bool SystemData::hasGamelist() const
 {
-	return (Utils::FileSystem::exists(getGamelistPath(false)));
+	return (fs::exists(getGamelistPath(false)));
 }
 
 unsigned int SystemData::getGameCount() const
 {
-	return (unsigned int)mRootFolder->getFilesRecursive(GAME).size();
+	return mRootFolder->getFilesRecursive(GAME).size();
 }
 
 SystemData* SystemData::getRandomSystem()
 {
 	//  this is a bit brute force. It might be more efficient to just to a while (!gameSystem) do random again...
 	unsigned int total = 0;
-	for(auto it = sSystemVector.cbegin(); it != sSystemVector.cend(); it++)
+	for(auto it = sSystemVector.begin(); it != sSystemVector.end(); it++)
 	{
 		if ((*it)->isGameSystem())
 			total ++;
 	}
 
 	// get random number in range
-	int target = (int)Math::round((std::rand() / (float)RAND_MAX) * (total - 1));
-	for (auto it = sSystemVector.cbegin(); it != sSystemVector.cend(); it++)
+	int target = (int) std::round(((double)std::rand() / (double)RAND_MAX) * (total - 1));
+	for (auto it = sSystemVector.begin(); it != sSystemVector.end(); it++)
 	{
 		if ((*it)->isGameSystem())
 		{
@@ -464,18 +468,18 @@ SystemData* SystemData::getRandomSystem()
 FileData* SystemData::getRandomGame()
 {
 	std::vector<FileData*> list = mRootFolder->getFilesRecursive(GAME, true);
-	unsigned int total = (int)list.size();
+	unsigned int total = list.size();
 	int target = 0;
 	// get random number in range
 	if (total == 0)
 		return NULL;
-	target = (int)Math::round((std::rand() / (float)RAND_MAX) * (total - 1));
+	target = (int) std::round(((double)std::rand() / (double)RAND_MAX) * (total - 1));
 	return list.at(target);
 }
 
 unsigned int SystemData::getDisplayedGameCount() const
 {
-	return (unsigned int)mRootFolder->getFilesRecursive(GAME, true).size();
+	return mRootFolder->getFilesRecursive(GAME, true).size();
 }
 
 void SystemData::loadTheme()
@@ -484,7 +488,7 @@ void SystemData::loadTheme()
 
 	std::string path = getThemePath();
 
-	if(!Utils::FileSystem::exists(path)) // no theme available for this platform
+	if(!fs::exists(path)) // no theme available for this platform
 		return;
 
 	try

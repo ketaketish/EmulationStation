@@ -4,7 +4,6 @@
 #include "components/VideoPlayerComponent.h"
 #endif
 #include "components/VideoVlcComponent.h"
-#include "utils/FileSystemUtil.h"
 #include "views/gamelist/IGameListView.h"
 #include "views/ViewController.h"
 #include "FileData.h"
@@ -14,9 +13,9 @@
 #include "Renderer.h"
 #include "Sound.h"
 #include "SystemData.h"
-#include <pugixml/src/pugixml.hpp>
+#include "Util.h"
+#include <boost/filesystem/operations.hpp>
 #include <unordered_map>
-#include <time.h>
 
 #define FADE_TIME 			300
 
@@ -38,8 +37,8 @@ SystemScreenSaver::SystemScreenSaver(Window* window) :
 {
 	mWindow->setScreenSaver(this);
 	std::string path = getTitleFolder();
-	if(!Utils::FileSystem::exists(path))
-		Utils::FileSystem::createDirectory(path);
+	if(!boost::filesystem::exists(path))
+		boost::filesystem::create_directory(path);
 	srand((unsigned int)time(NULL));
 	mVideoChangeTime = 30000;
 }
@@ -81,13 +80,13 @@ void SystemScreenSaver::startScreenSaver()
 		pickRandomVideo(path);
 
 		int retry = 200;
-		while(retry > 0 && ((path.empty() || !Utils::FileSystem::exists(path)) || mCurrentGame == NULL))
+		while(retry > 0 && ((path.empty() || !boost::filesystem::exists(path)) || mCurrentGame == NULL))
 		{
 			retry--;
 			pickRandomVideo(path);
 		}
 
-		if (!path.empty() && Utils::FileSystem::exists(path))
+		if (!path.empty() && boost::filesystem::exists(path))
 		{
 #ifdef _RPI_
 			// Create the correct type of video component
@@ -164,7 +163,7 @@ void SystemScreenSaver::startScreenSaver()
 		std::string bg_audio_file = Settings::getInstance()->getString("SlideshowScreenSaverBackgroundAudioFile");
 		if ((!mBackgroundAudio) && (bg_audio_file != ""))
 		{
-			if (Utils::FileSystem::exists(bg_audio_file))
+			if (boost::filesystem::exists(bg_audio_file))
 			{
 				// paused PS so that the background audio keeps playing
 				PowerSaver::pause();
@@ -259,8 +258,8 @@ void SystemScreenSaver::renderScreenSaver()
 unsigned long SystemScreenSaver::countGameListNodes(const char *nodeName)
 {
 	unsigned long nodeCount = 0;
-	std::vector<SystemData*>::const_iterator it;
-	for (it = SystemData::sSystemVector.cbegin(); it != SystemData::sSystemVector.cend(); ++it)
+	std::vector<SystemData*>:: iterator it;
+	for (it = SystemData::sSystemVector.begin(); it != SystemData::sSystemVector.end(); ++it)
 	{
 		// We only want images and videos from game systems that are not collections
 		if (!(*it)->isCollection() && (*it)->isGameSystem())
@@ -269,7 +268,7 @@ unsigned long SystemScreenSaver::countGameListNodes(const char *nodeName)
 			pugi::xml_node root;
 			std::string xmlReadPath = (*it)->getGamelistPath(false);
 
-			if(Utils::FileSystem::exists(xmlReadPath))
+			if(boost::filesystem::exists(xmlReadPath))
 			{
 				pugi::xml_parse_result result = doc.load_file(xmlReadPath.c_str());
 				if (!result)
@@ -309,8 +308,8 @@ void SystemScreenSaver::countImages()
 
 void SystemScreenSaver::pickGameListNode(unsigned long index, const char *nodeName, std::string& path)
 {
-	std::vector<SystemData*>::const_iterator it;
-	for (it = SystemData::sSystemVector.cbegin(); it != SystemData::sSystemVector.cend(); ++it)
+	std::vector<SystemData*>:: iterator it;
+	for (it = SystemData::sSystemVector.begin(); it != SystemData::sSystemVector.end(); ++it)
 	{
 		pugi::xml_document doc;
 		pugi::xml_node root;
@@ -321,7 +320,7 @@ void SystemScreenSaver::pickGameListNode(unsigned long index, const char *nodeNa
 
 		std::string xmlReadPath = (*it)->getGamelistPath(false);
 
-		if(Utils::FileSystem::exists(xmlReadPath))
+		if(boost::filesystem::exists(xmlReadPath))
 		{
 			pugi::xml_parse_result result = doc.load_file(xmlReadPath.c_str());
 			if (!result)
@@ -338,7 +337,7 @@ void SystemScreenSaver::pickGameListNode(unsigned long index, const char *nodeNa
 					if (index-- == 0)
 					{
 						// Yes. Resolve to a full path
-						path = Utils::FileSystem::resolveRelativePath(node.text().get(), (*it)->getStartPath(), true);
+						path = resolvePath(node.text().get(), (*it)->getStartPath(), true).generic_string();
 						mSystemName = (*it)->getFullName();
 						mGameName = fileNode.child("name").text().get();
 
@@ -346,7 +345,7 @@ void SystemScreenSaver::pickGameListNode(unsigned long index, const char *nodeNa
 
 						// try the easy way. Should work for the majority of cases, unless in subfolders
 						FileData* rootFileData = (*it)->getRootFolder();
-						std::string gamePath = Utils::FileSystem::resolveRelativePath(fileNode.child("path").text().get(), (*it)->getStartPath(), false);
+						std::string gamePath = resolvePath(fileNode.child("path").text().get(), (*it)->getStartPath(), false).string();
 
 						std::string shortPath = gamePath;
 						shortPath = shortPath.replace(0, (*it)->getStartPath().length()+1, "");
@@ -354,7 +353,7 @@ void SystemScreenSaver::pickGameListNode(unsigned long index, const char *nodeNa
 						const std::unordered_map<std::string, FileData*>& children = rootFileData->getChildrenByFilename();
 						std::unordered_map<std::string, FileData*>::const_iterator screenSaverGame = children.find(shortPath);
 
-						if (screenSaverGame != children.cend())
+						if (screenSaverGame != children.end())
 						{
 							// Found the corresponding FileData
 							mCurrentGame = screenSaverGame->second;
@@ -365,10 +364,10 @@ void SystemScreenSaver::pickGameListNode(unsigned long index, const char *nodeNa
 							// iterate on children
 							FileType type = GAME;
 							std::vector<FileData*> allFiles = rootFileData->getFilesRecursive(type);
-							std::vector<FileData*>::const_iterator itf;  // declare an iterator to a vector of strings
+							std::vector<FileData*>::iterator itf;  // declare an iterator to a vector of strings
 
 							int i = 0;
-							for(itf=allFiles.cbegin() ; itf < allFiles.cend(); itf++,i++ ) {
+							for(itf=allFiles.begin() ; itf < allFiles.end(); itf++,i++ ) {
 								if ((*itf)->getPath() == gamePath)
 								{
 									mCurrentGame = (*itf);
@@ -416,27 +415,53 @@ void SystemScreenSaver::pickRandomGameListImage(std::string& path)
 void SystemScreenSaver::pickRandomCustomImage(std::string& path)
 {
 	std::string imageDir = Settings::getInstance()->getString("SlideshowScreenSaverImageDir");
-	if ((imageDir != "") && (Utils::FileSystem::exists(imageDir)))
+	if ((imageDir != "") && (boost::filesystem::exists(imageDir)))
 	{
-		std::string                   imageFilter = Settings::getInstance()->getString("SlideshowScreenSaverImageFilter");
-		std::vector<std::string>      matchingFiles;
-		Utils::FileSystem::stringList dirContent  = Utils::FileSystem::getDirContent(imageDir, Settings::getInstance()->getBool("SlideshowScreenSaverRecurse"));
+		std::string imageFilter = Settings::getInstance()->getString("SlideshowScreenSaverImageFilter");
 
-		for(Utils::FileSystem::stringList::const_iterator it = dirContent.cbegin(); it != dirContent.cend(); ++it)
+		std::vector<std::string> matchingFiles;
+
+		if (Settings::getInstance()->getBool("SlideshowScreenSaverRecurse"))
 		{
-			if (Utils::FileSystem::isRegularFile(*it))
+			boost::filesystem::recursive_directory_iterator end_iter;
+			boost::filesystem::recursive_directory_iterator iter(imageDir);
+
+			// TODO: Figure out how to remove this duplication in the else block
+			for (iter; iter != end_iter; ++iter)
 			{
-				// If the image filter is empty, or the file extension is in the filter string,
-				//  add it to the matching files list
-				if ((imageFilter.length() <= 0) ||
-					(imageFilter.find(Utils::FileSystem::getExtension(*it)) != std::string::npos))
+				if (boost::filesystem::is_regular_file(iter->status()))
 				{
-					matchingFiles.push_back(*it);
+					// If the image filter is empty, or the file extension is in the filter string,
+					//  add it to the matching files list
+					if ((imageFilter.length() <= 0) ||
+						(imageFilter.find(iter->path().extension().string()) != std::string::npos))
+					{
+						matchingFiles.push_back(iter->path().string());
+					}
+				}
+			}
+		}
+		else
+		{
+			boost::filesystem::directory_iterator end_iter;
+			boost::filesystem::directory_iterator iter(imageDir);
+
+			for (iter; iter != end_iter; ++iter)
+			{
+				if (boost::filesystem::is_regular_file(iter->status()))
+				{
+					// If the image filter is empty, or the file extension is in the filter string,
+					//  add it to the matching files list
+					if ((imageFilter.length() <= 0) ||
+						(imageFilter.find(iter->path().extension().string()) != std::string::npos))
+					{
+						matchingFiles.push_back(iter->path().string());
+					}
 				}
 			}
 		}
 
-		int fileCount = (int)matchingFiles.size();
+		int fileCount = matchingFiles.size();
 		if (fileCount > 0)
 		{
 			// get a random index in the range 0 to fileCount (exclusive)
