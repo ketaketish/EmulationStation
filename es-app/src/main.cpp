@@ -292,9 +292,6 @@ int main(int argc, char* argv[])
 	MameNames::init();
 	window.pushGui(ViewController::get());
 
-	bool splashScreen = Settings::getInstance()->getBool("SplashScreen");
-	bool splashScreenProgress = Settings::getInstance()->getBool("SplashScreenProgress");
-
 	if(!scrape_cmdline)
 	{
 		if(!window.init())
@@ -306,13 +303,8 @@ int main(int argc, char* argv[])
 		std::string glExts = (const char*)glGetString(GL_EXTENSIONS);
 		LOG(LogInfo) << "Checking available OpenGL extensions...";
 		LOG(LogInfo) << " ARB_texture_non_power_of_two: " << (glExts.find("ARB_texture_non_power_of_two") != std::string::npos ? "ok" : "MISSING");
-		if(splashScreen)
-		{
-			std::string progressText = "Loading...";
-			if (splashScreenProgress)
-				progressText = "Loading system config...";
-			window.renderLoadingScreen(progressText);
-		}
+		if(Settings::getInstance()->getBool("SplashScreen"))
+			window.renderLoadingScreen();
 	}
 
 	const char* errorMsg = NULL;
@@ -349,9 +341,6 @@ int main(int argc, char* argv[])
 	// preload what we can right away instead of waiting for the user to select it
 	// this makes for no delays when accessing content, but a longer startup time
 	ViewController::get()->preload();
-
-	if(splashScreen && splashScreenProgress)
-		window.renderLoadingScreen("Done.");
 
 	//choose which GUI to open depending on if an input configuration already exists
 	if(errorMsg == NULL)

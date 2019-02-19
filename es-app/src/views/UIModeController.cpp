@@ -94,12 +94,6 @@ bool UIModeController::isUIModeKid()
 		((mCurrentUIMode == "Kid") && !Settings::getInstance()->getBool("ForceKiosk")));
 }
 
-bool UIModeController::isUIModeKiosk()
-{
-	return (Settings::getInstance()->getBool("ForceKiosk") ||
-		((mCurrentUIMode == "Kiosk") && !Settings::getInstance()->getBool("ForceKid")));
-}
-
 std::string UIModeController::getFormattedPassKeyStr()
 {
 	// supported sequence-inputs: u (up), d (down), l (left), r (right), a, b, x, y
