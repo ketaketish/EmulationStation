@@ -40,7 +40,7 @@ VideoGameListView::VideoGameListView(Window* window, FileData* root) :
 	mList.setPosition(mSize.x() * (0.50f + padding), mList.getPosition().y());
 	mList.setSize(mSize.x() * (0.50f - padding), mList.getSize().y());
 	mList.setAlignment(TextListComponent<FileData*>::ALIGN_LEFT);
-	mList.setCursorChangedCallback([&](const CursorState& state) { updateInfoPanel(); });
+	mList.setCursorChangedCallback([&](const CursorState& /*state*/) { updateInfoPanel(); });
 
 	// Marquee
 	mMarquee.setOrigin(0.5f, 0.5f);
@@ -158,7 +158,7 @@ void VideoGameListView::initMDLabels()
 	std::vector<TextComponent*> components = getMDLabels();
 
 	const unsigned int colCount = 2;
-	const unsigned int rowCount = components.size() / 2;
+	const unsigned int rowCount = (int)(components.size() / 2);
 
 	Vector3f start(mSize.x() * 0.01f, mSize.y() * 0.625f, 0.0f);
 
@@ -237,15 +237,37 @@ void VideoGameListView::updateInfoPanel()
 		fadingOut = true;
 
 	}else{
-		if (!mVideo->setVideo(file->getVideoPath()))
+		std::string				video_path;
+		std::string				marquee_path;
+		std::string				thumbnail_path;
+		video_path 			= file->getVideoPath();
+		marquee_path 		= file->getMarqueePath();
+		thumbnail_path 		= file->getThumbnailPath();
+
+		if	(!video_path.empty() && (video_path[0] == '~'))
+		{
+			video_path.erase(0, 1);
+			video_path.insert(0, getHomePath());
+		}
+		if	(!marquee_path.empty() && (marquee_path[0] == '~'))
+		{
+			marquee_path.erase(0, 1);
+			marquee_path.insert(0, getHomePath());
+		}
+		if (!thumbnail_path.empty() && (thumbnail_path[0] == '~'))
+		{
+			thumbnail_path.erase(0, 1);
+			thumbnail_path.insert(0, getHomePath());
+		}
+		if (!mVideo->setVideo(video_path))
 		{
 			mVideo->setDefaultVideo();
 		}
 		mVideoPlaying = true;
 
-		mVideo->setImage(file->getThumbnailPath());
-		mMarquee.setImage(file->getMarqueePath());
-		mImage.setImage(file->getThumbnailPath());
+		mVideo->setImage(thumbnail_path);
+		mMarquee.setImage(marquee_path);
+		mImage.setImage(thumbnail_path);
 
 		mDescription.setText(file->metadata.get("desc"));
 		mDescContainer.reset();
@@ -272,9 +294,9 @@ void VideoGameListView::updateInfoPanel()
 	comps.push_back(&mDescription);
 	comps.push_back(&mImage);
 	std::vector<TextComponent*> labels = getMDLabels();
-	comps.insert(comps.end(), labels.begin(), labels.end());
+	comps.insert(comps.cend(), labels.cbegin(), labels.cend());
 
-	for(auto it = comps.begin(); it != comps.end(); it++)
+	for(auto it = comps.cbegin(); it != comps.cend(); it++)
 	{
 		GuiComponent* comp = *it;
 		// an animation is playing
@@ -286,7 +308,7 @@ void VideoGameListView::updateInfoPanel()
 		{
 			auto func = [comp](float t)
 			{
-				comp->setOpacity((unsigned char)(lerp<float>(0.0f, 1.0f, t)*255));
+				comp->setOpacity((unsigned char)(Math::lerp(0.0f, 1.0f, t)*255));
 			};
 			comp->setAnimation(new LambdaAnimation(func, 150), 0, nullptr, fadingOut);
 		}

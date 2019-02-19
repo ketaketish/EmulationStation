@@ -1,5 +1,6 @@
 #include "views/gamelist/BasicGameListView.h"
 
+#include "views/UIModeController.h"
 #include "views/ViewController.h"
 #include "CollectionSystemManager.h"
 #include "Settings.h"
@@ -44,7 +45,7 @@ void BasicGameListView::populateList(const std::vector<FileData*>& files)
 	mHeaderText.setText(mRoot->getSystem()->getFullName());
 	if (files.size() > 0)
 	{
-		for(auto it = files.begin(); it != files.end(); it++)
+		for(auto it = files.cbegin(); it != files.cend(); it++)
 		{
 			mList.add((*it)->getName(), *it, ((*it)->getType() == FOLDER));
 		}
@@ -109,9 +110,9 @@ void BasicGameListView::remove(FileData *game, bool deleteFile)
 	if (getCursor() == game)                     // Select next element in list, or prev if none
 	{
 		std::vector<FileData*> siblings = parent->getChildrenListToDisplay();
-		auto gameIter = std::find(siblings.begin(), siblings.end(), game);
-		unsigned int gamePos = std::distance(siblings.begin(), gameIter);
-		if (gameIter != siblings.end())
+		auto gameIter = std::find(siblings.cbegin(), siblings.cend(), game);
+		int gamePos = (int)std::distance(siblings.cbegin(), gameIter);
+		if (gameIter != siblings.cend())
 		{
 			if ((gamePos + 1) < siblings.size())
 			{
@@ -141,7 +142,7 @@ std::vector<HelpPrompt> BasicGameListView::getHelpPrompts()
 	prompts.push_back(HelpPrompt("b", "back"));
 	prompts.push_back(HelpPrompt("select", "options"));
 	prompts.push_back(HelpPrompt("x", "random"));
-	if(mRoot->getSystem()->isGameSystem() && !ViewController::get()->isUIModeKid())
+	if(mRoot->getSystem()->isGameSystem() && !UIModeController::getInstance()->isUIModeKid())
 	{
 		std::string prompt = CollectionSystemManager::get()->getEditingCollection();
 		prompts.push_back(HelpPrompt("y", prompt));

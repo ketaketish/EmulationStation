@@ -1,5 +1,6 @@
 #include "views/gamelist/ISimpleGameListView.h"
 
+#include "views/UIModeController.h"
 #include "views/ViewController.h"
 #include "CollectionSystemManager.h"
 #include "Settings.h"
@@ -59,7 +60,7 @@ void ISimpleGameListView::onThemeChanged(const std::shared_ptr<ThemeData>& theme
 	}
 }
 
-void ISimpleGameListView::onFileChanged(FileData* file, FileChangeType change)
+void ISimpleGameListView::onFileChanged(FileData* /*file*/, FileChangeType /*change*/)
 {
 	// we could be tricky here to be efficient;
 	// but this shouldn't happen very often so we'll just always repopulate
@@ -142,7 +143,7 @@ bool ISimpleGameListView::input(InputConfig* config, Input input)
 				setCursor(randomGame);
 			}
 			return true;
-		}else if (config->isMappedTo("y", input) && !(ViewController::get()->isUIModeKid()))
+		}else if (config->isMappedTo("y", input) && !(UIModeController::getInstance()->isUIModeKid()))
 		{
 			if(mRoot->getSystem()->isGameSystem())
 			{

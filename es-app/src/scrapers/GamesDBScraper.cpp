@@ -6,6 +6,7 @@
 #include "Settings.h"
 #include "SystemData.h"
 #include "Util.h"
+#include <pugixml/src/pugixml.hpp>
 
 using namespace PlatformIds;
 const std::map<PlatformId, const char*> gamesdb_platformid_map {
@@ -37,7 +38,7 @@ const std::map<PlatformId, const char*> gamesdb_platformid_map {
 	{ NINTENDO_64, "Nintendo 64" },
 	{ NINTENDO_DS, "Nintendo DS" },
 	{ FAMICOM_DISK_SYSTEM, "Famicom Disk System" },
-	{ NINTENDO_ENTERTAINMENT_SYSTEM, "Nintendo Entertainment System { NES)" },
+	{ NINTENDO_ENTERTAINMENT_SYSTEM, "Nintendo Entertainment System (NES)" },
 	{ GAME_BOY, "Nintendo Game Boy" },
 	{ GAME_BOY_ADVANCE, "Nintendo Game Boy Advance" },
 	{ GAME_BOY_COLOR, "Nintendo Game Boy Color" },
@@ -62,7 +63,7 @@ const std::map<PlatformId, const char*> gamesdb_platformid_map {
 	{ PLAYSTATION_4, "Sony Playstation 4" },
 	{ PLAYSTATION_VITA, "Sony Playstation Vita" },
 	{ PLAYSTATION_PORTABLE, "Sony Playstation Portable" },
-	{ SUPER_NINTENDO, "Super Nintendo { SNES)" },
+	{ SUPER_NINTENDO, "Super Nintendo (SNES)" },
 	{ TURBOGRAFX_16, "TurboGrafx 16" },
 	{ WONDERSWAN, "WonderSwan" },
 	{ WONDERSWAN_COLOR, "WonderSwan Color" },
@@ -83,12 +84,12 @@ void thegamesdb_generate_scraper_requests(const ScraperSearchParams& params, std
 	if (!cleanName.empty() && cleanName.substr(0,3) == "id:")
 	{
 		std::string gameID = cleanName.substr(3);
-		path = "thegamesdb.net/api/GetGame.php?id=" + HttpReq::urlEncode(gameID);
+		path = "legacy.thegamesdb.net/api/GetGame.php?id=" + HttpReq::urlEncode(gameID);
 		usingGameID = true;
 	}else{
 		if (cleanName.empty())
 			cleanName = params.game->getCleanName();
-		path += "thegamesdb.net/api/GetGamesList.php?name=" + HttpReq::urlEncode(cleanName);
+		path += "legacy.thegamesdb.net/api/GetGamesList.php?name=" + HttpReq::urlEncode(cleanName);
 	}
 
 	if(usingGameID)
@@ -103,11 +104,11 @@ void thegamesdb_generate_scraper_requests(const ScraperSearchParams& params, std
 		// because TheGamesDB API either sucks or I don't know how to use it properly...
 		std::string urlBase = path;
 		auto& platforms = params.system->getPlatformIds();
-		for(auto platformIt = platforms.begin(); platformIt != platforms.end(); platformIt++)
+		for(auto platformIt = platforms.cbegin(); platformIt != platforms.cend(); platformIt++)
 		{
 			path = urlBase;
 			auto mapIt = gamesdb_platformid_map.find(*platformIt);
-			if(mapIt != gamesdb_platformid_map.end())
+			if(mapIt != gamesdb_platformid_map.cend())
 			{
 				path += "&platform=";
 				path += HttpReq::urlEncode(mapIt->second);
@@ -203,7 +204,7 @@ void TheGamesDBRequest::processList(const pugi::xml_document& xmldoc, std::vecto
 	for(int i = 0; game && i < MAX_SCRAPER_RESULTS; i++)
 	{
 		std::string id = game.child("id").text().get();
-		std::string path = "thegamesdb.net/api/GetGame.php?id=" + id;
+		std::string path = "legacy.thegamesdb.net/api/GetGame.php?id=" + id;
 
 		mRequestQueue->push(std::unique_ptr<ScraperRequest>(new TheGamesDBRequest(results, path)));
 

@@ -2,6 +2,7 @@
 
 #include "animations/LambdaAnimation.h"
 #include "guis/GuiMsgBox.h"
+#include "views/UIModeController.h"
 #include "views/ViewController.h"
 #include "Log.h"
 #include "Renderer.h"
@@ -29,7 +30,7 @@ void SystemView::populate()
 {
 	mEntries.clear();
 
-	for(auto it = SystemData::sSystemVector.begin(); it != SystemData::sSystemVector.end(); it++)
+	for(auto it = SystemData::sSystemVector.cbegin(); it != SystemData::sSystemVector.cend(); it++)
 	{
 		const std::shared_ptr<ThemeData>& theme = (*it)->getTheme();
 
@@ -113,7 +114,7 @@ void SystemView::populate()
 	if (mEntries.size() == 0)
 	{
 		// Something is wrong, there is not a single system to show, check if UI mode is not full
-		if (!ViewController::get()->isUIModeFull())
+		if (!UIModeController::getInstance()->isUIModeFull())
 		{
 			Settings::getInstance()->setString("UIMode", "Full");
 			mWindow->pushGui(new GuiMsgBox(mWindow, "The selected UI mode has nothing to show,\n returning to UI mode: FULL", "OK", nullptr));
@@ -206,7 +207,7 @@ void SystemView::update(int deltaTime)
 	GuiComponent::update(deltaTime);
 }
 
-void SystemView::onCursorChanged(const CursorState& state)
+void SystemView::onCursorChanged(const CursorState& /*state*/)
 {
 	// update help style
 	updateHelpPrompts();
@@ -240,7 +241,7 @@ void SystemView::onCursorChanged(const CursorState& state)
 	Animation* infoFadeOut = new LambdaAnimation(
 		[infoStartOpacity, this] (float t)
 	{
-		mSystemInfo.setOpacity((unsigned char)(lerp<float>(infoStartOpacity, 0.f, t) * 255));
+		mSystemInfo.setOpacity((unsigned char)(Math::lerp(infoStartOpacity, 0.f, t) * 255));
 	}, (int)(infoStartOpacity * (goFast ? 10 : 150)));
 
 	unsigned int gameCount = getSelected()->getDisplayedGameCount();
@@ -260,7 +261,7 @@ void SystemView::onCursorChanged(const CursorState& state)
 	Animation* infoFadeIn = new LambdaAnimation(
 		[this](float t)
 	{
-		mSystemInfo.setOpacity((unsigned char)(lerp<float>(0.f, 1.f, t) * 255));
+		mSystemInfo.setOpacity((unsigned char)(Math::lerp(0.f, 1.f, t) * 255));
 	}, goFast ? 10 : 300);
 
 	// wait 600ms to fade in
@@ -279,7 +280,7 @@ void SystemView::onCursorChanged(const CursorState& state)
 			[this, startExtrasFade, startPos, endPos, posMax, move_carousel](float t)
 		{
 			t -= 1;
-			float f = lerp<float>(startPos, endPos, t*t*t + 1);
+			float f = Math::lerp(startPos, endPos, t*t*t + 1);
 			if(f < 0)
 				f += posMax;
 			if(f >= posMax)
@@ -289,11 +290,11 @@ void SystemView::onCursorChanged(const CursorState& state)
 
 			t += 1;
 			if(t < 0.3f)
-				this->mExtrasFadeOpacity = lerp<float>(0.0f, 1.0f, t / 0.3f + startExtrasFade);
+				this->mExtrasFadeOpacity = Math::lerp(0.0f, 1.0f, t / 0.3f + startExtrasFade);
 			else if(t < 0.7f)
 				this->mExtrasFadeOpacity = 1.0f;
 			else
-				this->mExtrasFadeOpacity = lerp<float>(1.0f, 0.0f, (t - 0.7f) / 0.3f);
+				this->mExtrasFadeOpacity = Math::lerp(1.0f, 0.0f, (t - 0.7f) / 0.3f);
 
 			if(t > 0.5f)
 				this->mExtrasCamOffset = endPos;
@@ -305,7 +306,7 @@ void SystemView::onCursorChanged(const CursorState& state)
 			[this, startPos, endPos, posMax, move_carousel](float t)
 		{
 			t -= 1;
-			float f = lerp<float>(startPos, endPos, t*t*t + 1);
+			float f = Math::lerp(startPos, endPos, t*t*t + 1);
 			if(f < 0)
 				f += posMax;
 			if(f >= posMax)
@@ -320,7 +321,7 @@ void SystemView::onCursorChanged(const CursorState& state)
 			[this, startPos, endPos, posMax, move_carousel ](float t)
 		{
 			t -= 1;
-			float f = lerp<float>(startPos, endPos, t*t*t + 1);
+			float f = Math::lerp(startPos, endPos, t*t*t + 1);
 			if(f < 0)
 				f += posMax;
 			if(f >= posMax)
@@ -388,7 +389,7 @@ HelpStyle SystemView::getHelpStyle()
 	return style;
 }
 
-void  SystemView::onThemeChanged(const std::shared_ptr<ThemeData>& theme)
+void  SystemView::onThemeChanged(const std::shared_ptr<ThemeData>& /*theme*/)
 {
 	LOG(LogDebug) << "SystemView::onThemeChanged()";
 	mViewNeedsReload = true;
@@ -472,7 +473,7 @@ void SystemView::renderCarousel(const Transform4x4f& trans)
 	}
 
 	int center = (int)(mCamOffset);
-	int logoCount = std::min(mCarousel.maxLogoCount, (int)mEntries.size());
+	int logoCount = Math::min(mCarousel.maxLogoCount, (int)mEntries.size());
 
 	// Adding texture loading buffers depending on scrolling speed and status
 	int bufferIndex = getScrollingVelocity() + 1;
@@ -488,9 +489,9 @@ void SystemView::renderCarousel(const Transform4x4f& trans)
 	{
 		int index = i;
 		while (index < 0)
-			index += mEntries.size();
+			index += (int)mEntries.size();
 		while (index >= (int)mEntries.size())
-			index -= mEntries.size();
+			index -= (int)mEntries.size();
 
 		Transform4x4f logoTrans = carouselTrans;
 		logoTrans.translate(Vector3f(i * logoSpacing[0] + xOff, i * logoSpacing[1] + yOff, 0));
@@ -498,11 +499,11 @@ void SystemView::renderCarousel(const Transform4x4f& trans)
 		float distance = i - mCamOffset;
 
 		float scale = 1.0f + ((mCarousel.logoScale - 1.0f) * (1.0f - fabs(distance)));
-		scale = std::min(mCarousel.logoScale, std::max(1.0f, scale));
+		scale = Math::min(mCarousel.logoScale, Math::max(1.0f, scale));
 		scale /= mCarousel.logoScale;
 
-		int opacity = (int) round(0x80 + ((0xFF - 0x80) * (1.0f - fabs(distance))));
-		opacity = std::max((int) 0x80, opacity);
+		int opacity = (int)Math::round(0x80 + ((0xFF - 0x80) * (1.0f - fabs(distance))));
+		opacity = Math::max((int) 0x80, opacity);
 
 		const std::shared_ptr<GuiComponent> &comp = mEntries.at(index).data.logo;
 		if (mCarousel.type == VERTICAL_WHEEL) {
@@ -510,7 +511,7 @@ void SystemView::renderCarousel(const Transform4x4f& trans)
 			comp->setRotationOrigin(mCarousel.logoRotationOrigin);
 		}
 		comp->setScale(scale);
-		comp->setOpacity(opacity);
+		comp->setOpacity((unsigned char)opacity);
 		comp->render(logoTrans);
 	}
 	Renderer::popClipRect();
@@ -536,9 +537,9 @@ void SystemView::renderExtras(const Transform4x4f& trans, float lower, float upp
 	{
 		int index = i;
 		while (index < 0)
-			index += mEntries.size();
+			index += (int)mEntries.size();
 		while (index >= (int)mEntries.size())
-			index -= mEntries.size();
+			index -= (int)mEntries.size();
 
 		//Only render selected system when not showing
 		if (mShowing || index == mCursor)
@@ -631,7 +632,7 @@ void SystemView::getCarouselFromTheme(const ThemeData::ThemeElement* elem)
 	if (elem->has("logoSize"))
 		mCarousel.logoSize = elem->get<Vector2f>("logoSize") * mSize;
 	if (elem->has("maxLogoCount"))
-		mCarousel.maxLogoCount = (int) std::round(elem->get<float>("maxLogoCount"));
+		mCarousel.maxLogoCount = (int)Math::round(elem->get<float>("maxLogoCount"));
 	if (elem->has("zIndex"))
 		mCarousel.zIndex = elem->get<float>("zIndex");
 	if (elem->has("logoRotation"))
