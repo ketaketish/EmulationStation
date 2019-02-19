@@ -1,13 +1,15 @@
 #pragma once
+#ifndef ES_APP_GUIS_GUI_GAME_SCRAPER_H
+#define ES_APP_GUIS_GUI_GAME_SCRAPER_H
 
-#include "GuiComponent.h"
-#include "components/ScraperSearchComponent.h"
 #include "components/NinePatchComponent.h"
+#include "components/ScraperSearchComponent.h"
+#include "GuiComponent.h"
 
 class GuiGameScraper : public GuiComponent
 {
 public:
-	GuiGameScraper(Window* window, ScraperSearchParams params, const std::function<void(const ScraperSearchResult&)>& doneFunc);
+	GuiGameScraper(Window* window, ScraperSearchParams params, std::function<void(const ScraperSearchResult&)> doneFunc);
 
 	void onSizeChanged() override;
 
@@ -28,4 +30,8 @@ private:
 	std::shared_ptr<ComponentGrid> mButtonGrid;
 
 	ScraperSearchParams mSearchParams;
+
+	std::function<void()> mCancelFunc;
 };
+
+#endif // ES_APP_GUIS_GUI_GAME_SCRAPER_H

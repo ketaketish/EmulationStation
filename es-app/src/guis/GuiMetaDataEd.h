@@ -1,18 +1,22 @@
 #pragma once
+#ifndef ES_APP_GUIS_GUI_META_DATA_ED_H
+#define ES_APP_GUIS_GUI_META_DATA_ED_H
 
-#include "GuiComponent.h"
-#include "components/MenuComponent.h"
-#include "MetaData.h"
+#include "components/ComponentGrid.h"
+#include "components/NinePatchComponent.h"
 #include "scrapers/Scraper.h"
+#include "GuiComponent.h"
+#include "MetaData.h"
 
-#include <functional>
+class ComponentList;
+class TextComponent;
 
 class GuiMetaDataEd : public GuiComponent
 {
 public:
-	GuiMetaDataEd(Window* window, const FileData& file, 
-		const std::function<void()>& savedCallback, const std::function<void()>& deleteFunc);
-
+	GuiMetaDataEd(Window* window, MetaDataList* md, const std::vector<MetaDataDecl>& mdd, ScraperSearchParams params, 
+		const std::string& header, std::function<void()> savedCallback, std::function<void()> deleteFunc);
+	
 	bool input(InputConfig* config, Input input) override;
 	void onSizeChanged() override;
 	virtual std::vector<HelpPrompt> getHelpPrompts() override;
@@ -32,14 +36,14 @@ private:
 	std::shared_ptr<ComponentList> mList;
 	std::shared_ptr<ComponentGrid> mButtons;
 
-	FileData mFile;
-	MetaDataMap mMetaData;
-	const std::vector<MetaDataDecl>& mMetaDataDecl;
-
 	ScraperSearchParams mScraperParams;
 
 	std::vector< std::shared_ptr<GuiComponent> > mEditors;
-	
+
+	std::vector<MetaDataDecl> mMetaDataDecl;
+	MetaDataList* mMetaData;
 	std::function<void()> mSavedCallback;
 	std::function<void()> mDeleteFunc;
 };
+
+#endif // ES_APP_GUIS_GUI_META_DATA_ED_H

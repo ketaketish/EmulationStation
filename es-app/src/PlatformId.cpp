@@ -1,7 +1,6 @@
 #include "PlatformId.h"
-#include <string.h>
 
-extern const char* mameNameToRealName[];
+#include <string.h>
 
 namespace PlatformIds
 {
@@ -35,6 +34,7 @@ namespace PlatformIds
 		"n3ds", // nintendo 3DS
 		"n64", // nintendo 64
 		"nds", // nintendo DS
+		"fds", // Famicom Disk System
 		"nes", // nintendo entertainment system
 		"gb", // game boy
 		"gba", // game boy advance
@@ -42,6 +42,8 @@ namespace PlatformIds
 		"gc", // gamecube
 		"wii",
 		"wiiu",
+		"virtualboy",
+		"gameandwatch",
 		"pc",
 		"sega32x",
 		"segacd",
@@ -51,6 +53,7 @@ namespace PlatformIds
 		"mastersystem", // sega master system
 		"megadrive", // sega megadrive
 		"saturn", // sega saturn
+		"sg-1000",
 		"psx",
 		"ps2",
 		"ps3",
@@ -58,10 +61,15 @@ namespace PlatformIds
 		"psvita",
 		"psp", // playstation portable
 		"snes", // super nintendo entertainment system
-		"pcengine", // turbografx-16/pcengine
+		"pcengine", // (aka turbografx-16) HuCards only
+		"pcenginecd", // (aka turbografx-16) CD-ROMs only
 		"wonderswan",
 		"wonderswancolor",
 		"zxspectrum",
+		"videopac",
+		"vectrex",
+		"trs-80",
+		"coco",
 
 		"ignore", // do not allow scraping for this system
 		"invalid"
@@ -84,18 +92,5 @@ namespace PlatformIds
 	const char* getPlatformName(PlatformId id)
 	{
 		return PlatformNames[id];
-	}
-
-	const char* getCleanMameName(const char* from)
-	{
-		const char** mameNames = mameNameToRealName;
-
-		while(*mameNames != NULL && strcmp(from, *mameNames) != 0)
-			mameNames += 2;
-
-		if(*mameNames)
-			return *(mameNames + 1);
-		
-		return from;
 	}
 }

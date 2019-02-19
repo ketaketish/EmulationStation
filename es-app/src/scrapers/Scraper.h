@@ -1,29 +1,34 @@
 #pragma once
+#ifndef ES_APP_SCRAPERS_SCRAPER_H
+#define ES_APP_SCRAPERS_SCRAPER_H
 
-#include "MetaData.h"
-#include "SystemData.h"
-#include "HttpReq.h"
 #include "AsyncHandle.h"
-#include <vector>
+#include "HttpReq.h"
+#include "MetaData.h"
 #include <functional>
+#include <memory>
 #include <queue>
+#include <utility>
+#include <assert.h>
 
 #define MAX_SCRAPER_RESULTS 7
 
+class FileData;
+class SystemData;
+
 struct ScraperSearchParams
 {
-	ScraperSearchParams(SystemData* s, const FileData& g, const std::string& n = "") : system(s), game(g), nameOverride(n) {};
-
 	SystemData* system;
-	FileData game;
+	FileData* game;
+
 	std::string nameOverride;
 };
 
 struct ScraperSearchResult
 {
-	ScraperSearchResult() : metadata(GAME_METADATA) {};
+	ScraperSearchResult() : mdl(GAME_METADATA) {};
 
-	MetaDataMap metadata;
+	MetaDataList mdl;
 	std::string imageUrl;
 	std::string thumbnailUrl;
 };
@@ -155,3 +160,5 @@ std::unique_ptr<MDResolveHandle> resolveMetaDataAssets(const ScraperSearchResult
 //Will overwrite the image at [path] with the new resized one.
 //Returns true if successful, false otherwise.
 bool resizeImage(const std::string& path, int maxWidth, int maxHeight);
+
+#endif // ES_APP_SCRAPERS_SCRAPER_H
