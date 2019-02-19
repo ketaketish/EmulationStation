@@ -1,9 +1,9 @@
 #include "components/TextComponent.h"
 
-#include "utils/StringUtil.h"
 #include "Log.h"
 #include "Renderer.h"
 #include "Settings.h"
+#include "Util.h"
 
 TextComponent::TextComponent(Window* window) : GuiComponent(window), 
 	mFont(Font::get(FONT_SIZE_MEDIUM)), mUppercase(false), mColor(0x000000FF), mAutoCalcExtent(true, true),
@@ -106,7 +106,7 @@ void TextComponent::render(const Transform4x4f& parentTrans)
 	if(mTextCache)
 	{
 		const Vector2f& textSize = mTextCache->metrics.size;
-		float yOff = 0;
+		float yOff;
 		switch(mVerticalAlignment)
 		{
 			case ALIGN_TOP:
@@ -156,11 +156,11 @@ void TextComponent::calculateExtent()
 {
 	if(mAutoCalcExtent.x())
 	{
-		mSize = mFont->sizeText(mUppercase ? Utils::String::toUpper(mText) : mText, mLineSpacing);
+		mSize = mFont->sizeText(mUppercase ? strToUpper(mText) : mText, mLineSpacing);
 	}else{
 		if(mAutoCalcExtent.y())
 		{
-			mSize[1] = mFont->sizeWrappedText(mUppercase ? Utils::String::toUpper(mText) : mText, getSize().x(), mLineSpacing).y();
+			mSize[1] = mFont->sizeWrappedText(mUppercase ? strToUpper(mText) : mText, getSize().x(), mLineSpacing).y();
 		}
 	}
 }
@@ -175,7 +175,7 @@ void TextComponent::onTextChanged()
 		return;
 	}
 
-	std::string text = mUppercase ? Utils::String::toUpper(mText) : mText;
+	std::string text = mUppercase ? strToUpper(mText) : mText;
 
 	std::shared_ptr<Font> f = mFont;
 	const bool isMultiline = (mSize.y() == 0 || mSize.y() > f->getHeight()*1.2f);
@@ -197,7 +197,7 @@ void TextComponent::onTextChanged()
 
 		while(text.size() && size.x() + abbrevSize.x() > mSize.x())
 		{
-			size_t newSize = Utils::String::prevCursor(text, text.size());
+			size_t newSize = Font::getPrevCursor(text, text.size());
 			text.erase(newSize, text.size() - newSize);
 			size = f->sizeText(text);
 		}

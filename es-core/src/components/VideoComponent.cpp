@@ -1,11 +1,12 @@
 #include "components/VideoComponent.h"
 
 #include "resources/ResourceManager.h"
-#include "utils/FileSystemUtil.h"
 #include "PowerSaver.h"
 #include "Renderer.h"
 #include "ThemeData.h"
+#include "Util.h"
 #include "Window.h"
+#include <boost/filesystem/operations.hpp>
 #include <SDL_timer.h>
 
 #define FADE_TIME_MS	200
@@ -16,7 +17,7 @@ std::string getTitlePath() {
 }
 
 std::string getTitleFolder() {
-	std::string home = Utils::FileSystem::getHomePath();
+	std::string home = getHomePath();
 	return home + "/.emulationstation/tmp/";
 }
 
@@ -74,8 +75,8 @@ VideoComponent::VideoComponent(Window* window) :
 	}
 
 	std::string path = getTitleFolder();
-	if(!Utils::FileSystem::exists(path))
-		Utils::FileSystem::createDirectory(path);
+	if(!boost::filesystem::exists(path))
+		boost::filesystem::create_directory(path);
 }
 
 VideoComponent::~VideoComponent()
@@ -101,7 +102,8 @@ void VideoComponent::onSizeChanged()
 bool VideoComponent::setVideo(std::string path)
 {
 	// Convert the path into a generic format
-	std::string fullPath = Utils::FileSystem::getCanonicalPath(path);
+	boost::filesystem::path fullPath = getCanonicalPath(path);
+	fullPath.make_preferred().native();
 
 	// Check that it's changed
 	if (fullPath == mVideoPath)
@@ -111,7 +113,7 @@ bool VideoComponent::setVideo(std::string path)
 	mVideoPath = fullPath;
 
 	// If the file exists then set the new video
-	if (!fullPath.empty() && ResourceManager::getInstance()->fileExists(fullPath))
+	if (!fullPath.empty() && ResourceManager::getInstance()->fileExists(fullPath.generic_string()))
 	{
 		// Return true to show that we are going to attempt to play a video
 		return true;

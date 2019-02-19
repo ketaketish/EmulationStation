@@ -44,7 +44,7 @@ void AnimatedImageComponent::reset()
 
 void AnimatedImageComponent::onSizeChanged()
 {
-	for(auto it = mFrames.cbegin(); it != mFrames.cend(); it++)
+	for(auto it = mFrames.begin(); it != mFrames.end(); it++)
 	{
 		it->first->setResize(mSize.x(), mSize.y());
 	}
@@ -61,7 +61,7 @@ void AnimatedImageComponent::update(int deltaTime)
 	{
 		mCurrentFrame++;
 
-		if(mCurrentFrame == (int)mFrames.size())
+		if(mCurrentFrame == mFrames.size())
 		{
 			if(mLoop)
 			{

@@ -22,7 +22,7 @@ SliderComponent::SliderComponent(Window* window, float min, float max, float inc
 
 bool SliderComponent::input(InputConfig* config, Input input)
 {
-	if(config->isMappedLike("left", input))
+	if(config->isMappedTo("left", input))
 	{
 		if(input.value)
 			setValue(mValue - mSingleIncrement);
@@ -31,7 +31,7 @@ bool SliderComponent::input(InputConfig* config, Input input)
 		mMoveAccumulator = -MOVE_REPEAT_DELAY;
 		return true;
 	}
-	if(config->isMappedLike("right", input))
+	if(config->isMappedTo("right", input))
 	{
 		if(input.value)
 			setValue(mValue + mSingleIncrement);

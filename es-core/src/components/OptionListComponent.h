@@ -48,7 +48,7 @@ private:
 			for(auto it = mParent->mEntries.begin(); it != mParent->mEntries.end(); it++)
 			{
 				row.elements.clear();
-				row.addElement(std::make_shared<TextComponent>(mWindow, Utils::String::toUpper(it->name), font, 0x777777FF), true);
+				row.addElement(std::make_shared<TextComponent>(mWindow, strToUpper(it->name), font, 0x777777FF), true);
 
 				OptionListData& e = *it;
 
@@ -143,9 +143,6 @@ public:
 		mText.setHorizontalAlignment(ALIGN_CENTER);
 		addChild(&mText);
 
-		mLeftArrow.setResize(0, mText.getFont()->getLetterHeight());
-		mRightArrow.setResize(0, mText.getFont()->getLetterHeight());
-
 		if(mMultiSelect)
 		{
 			mRightArrow.setImage(":/arrow.svg");
@@ -190,20 +187,20 @@ public:
 			}
 			if(!mMultiSelect)
 			{
-				if(config->isMappedLike("left", input))
+				if(config->isMappedTo("left", input))
 				{
 					// move selection to previous
 					unsigned int i = getSelectedId();
 					int next = (int)i - 1;
 					if(next < 0)
-						next += (int)mEntries.size();
+						next += mEntries.size();
 
 					mEntries.at(i).selected = false;
 					mEntries.at(next).selected = true;
 					onSelectedChanged();
 					return true;
 
-				}else if(config->isMappedLike("right", input))
+				}else if(config->isMappedTo("right", input))
 				{
 					// move selection to next
 					unsigned int i = getSelectedId();
@@ -222,7 +219,7 @@ public:
 	std::vector<T> getSelectedObjects()
 	{
 		std::vector<T> ret;
-		for(auto it = mEntries.cbegin(); it != mEntries.cend(); it++)
+		for(auto it = mEntries.begin(); it != mEntries.end(); it++)
 		{
 			if(it->selected)
 				ret.push_back(it->object);
@@ -301,11 +298,11 @@ private:
 				mParent->onSizeChanged();
 		}else{
 			// display currently selected + l/r cursors
-			for(auto it = mEntries.cbegin(); it != mEntries.cend(); it++)
+			for(auto it = mEntries.begin(); it != mEntries.end(); it++)
 			{
 				if(it->selected)
 				{
-					mText.setText(Utils::String::toUpper(it->name));
+					mText.setText(strToUpper(it->name));
 					mText.setSize(0, mText.getSize().y());
 					setSize(mText.getSize().x() + mLeftArrow.getSize().x() + mRightArrow.getSize().x() + 24, mText.getSize().y());
 					if(mParent) // hack since theres no "on child size changed" callback atm...

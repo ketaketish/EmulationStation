@@ -34,7 +34,7 @@ MenuComponent::MenuComponent(Window* window, const char* title, const std::share
 
 void MenuComponent::setTitle(const char* title, const std::shared_ptr<Font>& font)
 {
-	mTitle->setText(Utils::String::toUpper(title));
+	mTitle->setText(strToUpper(title));
 	mTitle->setFont(font);
 }
 
@@ -62,7 +62,7 @@ void MenuComponent::updateSize()
 		}
 	}
 
-	float width = (float)Math::min((int)Renderer::getScreenHeight(), (int)(Renderer::getScreenWidth() * 0.90f));
+	float width = (float) std::min(Renderer::getScreenHeight(), (unsigned int) (Renderer::getScreenWidth() * 0.90f));
 	setSize(width, height);
 }
 
@@ -79,7 +79,7 @@ void MenuComponent::onSizeChanged()
 
 void MenuComponent::addButton(const std::string& name, const std::string& helpText, const std::function<void()>& callback)
 {
-	mButtons.push_back(std::make_shared<ButtonComponent>(mWindow, Utils::String::toUpper(name), helpText, callback));
+	mButtons.push_back(std::make_shared<ButtonComponent>(mWindow, strToUpper(name), helpText, callback));
 	updateGrid();
 	updateSize();
 }
@@ -105,7 +105,7 @@ std::vector<HelpPrompt> MenuComponent::getHelpPrompts()
 
 std::shared_ptr<ComponentGrid> makeButtonGrid(Window* window, const std::vector< std::shared_ptr<ButtonComponent> >& buttons)
 {
-	std::shared_ptr<ComponentGrid> buttonGrid = std::make_shared<ComponentGrid>(window, Vector2i((int)buttons.size(), 2));
+	std::shared_ptr<ComponentGrid> buttonGrid = std::make_shared<ComponentGrid>(window, Vector2i(buttons.size(), 2));
 
 	float buttonGridWidth = (float)BUTTON_GRID_HORIZ_PADDING * buttons.size(); // initialize to padding
 	for(int i = 0; i < (int)buttons.size(); i++)
@@ -128,6 +128,6 @@ std::shared_ptr<ImageComponent> makeArrow(Window* window)
 {
 	auto bracket = std::make_shared<ImageComponent>(window);
 	bracket->setImage(":/arrow.svg");
-	bracket->setResize(0, Math::round(Font::get(FONT_SIZE_MEDIUM)->getLetterHeight()));
+	bracket->setResize(0, round(Font::get(FONT_SIZE_MEDIUM)->getLetterHeight()));
 	return bracket;
 }

@@ -1,7 +1,6 @@
 #include "components/TextEditComponent.h"
 
 #include "resources/Font.h"
-#include "utils/StringUtil.h"
 #include "Renderer.h"
 
 #define TEXT_PADDING_HORIZ 10
@@ -60,13 +59,13 @@ void TextEditComponent::textInput(const char* text)
 		{
 			if(mCursor > 0)
 			{
-				size_t newCursor = Utils::String::prevCursor(mText, mCursor);
+				size_t newCursor = Font::getPrevCursor(mText, mCursor);
 				mText.erase(mText.begin() + newCursor, mText.begin() + mCursor);
-				mCursor = (unsigned int)newCursor;
+				mCursor = newCursor;
 			}
 		}else{
 			mText.insert(mCursor, text);
-			mCursor += (unsigned int)strlen(text);
+			mCursor += strlen(text);
 		}
 	}
 
@@ -90,9 +89,9 @@ void TextEditComponent::stopEditing()
 
 bool TextEditComponent::input(InputConfig* config, Input input)
 {
-	bool const cursor_left = (config->getDeviceId() != DEVICE_KEYBOARD && config->isMappedLike("left", input)) ||
+	bool const cursor_left = (config->getDeviceId() != DEVICE_KEYBOARD && config->isMappedTo("left", input)) ||
 		(config->getDeviceId() == DEVICE_KEYBOARD && input.id == SDLK_LEFT);
-	bool const cursor_right = (config->getDeviceId() != DEVICE_KEYBOARD && config->isMappedLike("right", input)) ||
+	bool const cursor_right = (config->getDeviceId() != DEVICE_KEYBOARD && config->isMappedTo("right", input)) ||
 		(config->getDeviceId() == DEVICE_KEYBOARD && input.id == SDLK_RIGHT);
 
 	if(input.value == 0)
@@ -129,10 +128,10 @@ bool TextEditComponent::input(InputConfig* config, Input input)
 			return true;
 		}
 
-		if(config->getDeviceId() != DEVICE_KEYBOARD && config->isMappedLike("up", input))
+		if(config->getDeviceId() != DEVICE_KEYBOARD && config->isMappedTo("up", input))
 		{
 			// TODO
-		}else if(config->getDeviceId() != DEVICE_KEYBOARD && config->isMappedLike("down", input))
+		}else if(config->getDeviceId() != DEVICE_KEYBOARD && config->isMappedTo("down", input))
 		{
 			// TODO
 		}else if(cursor_left || cursor_right)
@@ -191,14 +190,14 @@ void TextEditComponent::updateCursorRepeat(int deltaTime)
 
 void TextEditComponent::moveCursor(int amt)
 {
-	mCursor = (unsigned int)Utils::String::moveCursor(mText, mCursor, amt);
+	mCursor = Font::moveCursor(mText, mCursor, amt);
 	onCursorChanged();
 }
 
 void TextEditComponent::setCursor(size_t pos)
 {
 	if(pos == std::string::npos)
-		mCursor = (unsigned int)mText.length();
+		mCursor = mText.length();
 	else
 		mCursor = (int)pos;
 
@@ -211,7 +210,7 @@ void TextEditComponent::onTextChanged()
 	mTextCache = std::unique_ptr<TextCache>(mFont->buildTextCache(wrappedText, 0, 0, 0x77777700 | getOpacity()));
 
 	if(mCursor > (int)mText.length())
-		mCursor = (unsigned int)mText.length();
+		mCursor = mText.length();
 }
 
 void TextEditComponent::onCursorChanged()
@@ -251,7 +250,7 @@ void TextEditComponent::render(const Transform4x4f& parentTrans)
 
 	Vector2i clipPos((int)trans.translation().x(), (int)trans.translation().y());
 	Vector3f dimScaled = trans * Vector3f(getTextAreaSize().x(), getTextAreaSize().y(), 0); // use "text area" size for clipping
-	Vector2i clipDim((int)(dimScaled.x() - trans.translation().x()), (int)(dimScaled.y() - trans.translation().y()));
+	Vector2i clipDim((int)dimScaled.x() - trans.translation().x(), (int)dimScaled.y() - trans.translation().y());
 	Renderer::pushClipRect(clipPos, clipDim);
 
 	trans.translate(Vector3f(-mScrollOffset.x(), -mScrollOffset.y(), 0));
