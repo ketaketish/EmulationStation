@@ -1,13 +1,17 @@
 #include "InputManager.h"
-#include "InputConfig.h"
-#include "Settings.h"
-#include "Window.h"
+
+#include "utils/FileSystemUtil.h"
+#include "CECInput.h"
 #include "Log.h"
-#include "pugixml/pugixml.hpp"
-#include <boost/filesystem.hpp>
 #include "platform.h"
+#include "Window.h"
+#include <pugixml/src/pugixml.hpp>
+#include <SDL.h>
+#include <iostream>
+#include <assert.h>
 
 #define KEYBOARD_GUID_STRING "-1"
+#define CEC_GUID_STRING      "-2"
 
 // SO HEY POTENTIAL POOR SAP WHO IS TRYING TO MAKE SENSE OF ALL THIS (by which I mean my future self)
 // There are like four distinct IDs used for joysticks (crazy, right?)
@@ -20,7 +24,9 @@
 // 4. Joystick GUID - this is some squashed version of joystick vendor, version, and a bunch of other device-specific things.
 //    It should remain the same across runs of the program/system restarts/device reordering and is what I use to identify which joystick to load.
 
-namespace fs = boost::filesystem;
+// hack for cec support
+int SDL_USER_CECBUTTONDOWN = -1;
+int SDL_USER_CECBUTTONUP   = -1;
 
 InputManager* InputManager::mInstance = NULL;
 
@@ -60,6 +66,12 @@ void InputManager::init()
 
 	mKeyboardInputConfig = new InputConfig(DEVICE_KEYBOARD, "Keyboard", KEYBOARD_GUID_STRING);
 	loadInputConfig(mKeyboardInputConfig);
+
+	SDL_USER_CECBUTTONDOWN = SDL_RegisterEvents(2);
+	SDL_USER_CECBUTTONUP   = SDL_USER_CECBUTTONDOWN + 1;
+	CECInput::init();
+	mCECInputConfig = new InputConfig(DEVICE_CEC, "CEC", CEC_GUID_STRING);
+	loadInputConfig(mCECInputConfig);
 }
 
 void InputManager::addJoystickByDeviceIndex(int id)
@@ -89,7 +101,14 @@ void InputManager::addJoystickByDeviceIndex(int id)
 	// set up the prevAxisValues
 	int numAxes = SDL_JoystickNumAxes(joy);
 	mPrevAxisValues[joyId] = new int[numAxes];
-	std::fill(mPrevAxisValues[joyId], mPrevAxisValues[joyId] + numAxes, 0); //initialize array to 0
+	mInitAxisValues[joyId] = new int[numAxes];
+
+	int axis;
+	for (int i = 0; i< numAxes; i++) {
+		axis = SDL_JoystickGetAxis(joy, i);
+		mInitAxisValues[joyId][i] = axis;
+		mPrevAxisValues[joyId][i] = axis;
+	}
 }
 
 void InputManager::removeJoystickByJoystickID(SDL_JoystickID joyId)
@@ -108,7 +127,7 @@ void InputManager::removeJoystickByJoystickID(SDL_JoystickID joyId)
 
 	// close the joystick
 	auto joyIt = mJoysticks.find(joyId);
-	if(joyIt != mJoysticks.end())
+	if(joyIt != mJoysticks.cend())
 	{
 		SDL_JoystickClose(joyIt->second);
 		mJoysticks.erase(joyIt);
@@ -122,19 +141,19 @@ void InputManager::deinit()
 	if(!initialized())
 		return;
 
-	for(auto iter = mJoysticks.begin(); iter != mJoysticks.end(); iter++)
+	for(auto iter = mJoysticks.cbegin(); iter != mJoysticks.cend(); iter++)
 	{
 		SDL_JoystickClose(iter->second);
 	}
 	mJoysticks.clear();
 
-	for(auto iter = mInputConfigs.begin(); iter != mInputConfigs.end(); iter++)
+	for(auto iter = mInputConfigs.cbegin(); iter != mInputConfigs.cend(); iter++)
 	{
 		delete iter->second;
 	}
 	mInputConfigs.clear();
 
-	for(auto iter = mPrevAxisValues.begin(); iter != mPrevAxisValues.end(); iter++)
+	for(auto iter = mPrevAxisValues.cbegin(); iter != mPrevAxisValues.cend(); iter++)
 	{
 		delete[] iter->second;
 	}
@@ -146,15 +165,29 @@ void InputManager::deinit()
 		mKeyboardInputConfig = NULL;
 	}
 
+	if(mCECInputConfig != NULL)
+	{
+		delete mCECInputConfig;
+		mCECInputConfig = NULL;
+	}
+
+	CECInput::deinit();
+
 	SDL_JoystickEventState(SDL_DISABLE);
 	SDL_QuitSubSystem(SDL_INIT_JOYSTICK);
 }
 
-int InputManager::getNumJoysticks() { return mJoysticks.size(); }
+int InputManager::getNumJoysticks() { return (int)mJoysticks.size(); }
 int InputManager::getButtonCountByDevice(SDL_JoystickID id)
 {
 	if(id == DEVICE_KEYBOARD)
 		return 120; //it's a lot, okay.
+	else if(id == DEVICE_CEC)
+#ifdef HAVE_CECLIB
+		return CEC::CEC_USER_CONTROL_CODE_MAX;
+#else // HAVE_LIBCEF
+		return 0;
+#endif // HAVE_CECLIB
 	else
 		return SDL_JoystickNumButtons(mJoysticks[id]);
 }
@@ -163,6 +196,8 @@ InputConfig* InputManager::getInputConfigByDevice(int device)
 {
 	if(device == DEVICE_KEYBOARD)
 		return mKeyboardInputConfig;
+	else if(device == DEVICE_CEC)
+		return mCECInputConfig;
 	else
 		return mInputConfigs[device];
 }
@@ -170,21 +205,28 @@ InputConfig* InputManager::getInputConfigByDevice(int device)
 bool InputManager::parseEvent(const SDL_Event& ev, Window* window)
 {
 	bool causedEvent = false;
+	int axis;
 	switch(ev.type)
 	{
 	case SDL_JOYAXISMOTION:
+		axis = ev.jaxis.value;
+		// Check for ABS_Z/ABS_RZ trigger axes which rest at -32768
+		if ((ev.jaxis.axis == 2 || ev.jaxis.axis == 5) && mInitAxisValues[ev.jaxis.which][ev.jaxis.axis] == -32768)
+		{
+			// shift to 0 - 32767.
+			axis = axis / 2 + 16384;
+		}
 		//if it switched boundaries
-		if((abs(ev.jaxis.value) > DEADZONE) != (abs(mPrevAxisValues[ev.jaxis.which][ev.jaxis.axis]) > DEADZONE))
+		if((abs(axis) > DEADZONE) != (abs(mPrevAxisValues[ev.jaxis.which][ev.jaxis.axis]) > DEADZONE))
 		{
 			int normValue;
-			if(abs(ev.jaxis.value) <= DEADZONE)
+			if(abs(axis) <= DEADZONE)
 				normValue = 0;
 			else
-				if(ev.jaxis.value > 0)
+				if(axis > 0)
 					normValue = 1;
 				else
 					normValue = -1;
-
 			window->input(getInputConfigByDevice(ev.jaxis.which), Input(ev.jaxis.which, TYPE_AXIS, ev.jaxis.axis, normValue, false));
 			causedEvent = true;
 		}
@@ -238,13 +280,19 @@ bool InputManager::parseEvent(const SDL_Event& ev, Window* window)
 		return false;
 	}
 
+	if((ev.type == (unsigned int)SDL_USER_CECBUTTONDOWN) || (ev.type == (unsigned int)SDL_USER_CECBUTTONUP))
+	{
+		window->input(getInputConfigByDevice(DEVICE_CEC), Input(DEVICE_CEC, TYPE_CEC_BUTTON, ev.user.code, ev.type == (unsigned int)SDL_USER_CECBUTTONDOWN, false));
+		return true;
+	}
+
 	return false;
 }
 
 bool InputManager::loadInputConfig(InputConfig* config)
 {
 	std::string path = getConfigPath();
-	if(!fs::exists(path))
+	if(!Utils::FileSystem::exists(path))
 		return false;
 	
 	pugi::xml_document doc;
@@ -287,60 +335,60 @@ void InputManager::loadDefaultKBConfig()
 	cfg->mapInput("start", Input(DEVICE_KEYBOARD, TYPE_KEY, SDLK_F1, 1, true));
 	cfg->mapInput("select", Input(DEVICE_KEYBOARD, TYPE_KEY, SDLK_F2, 1, true));
 
-	cfg->mapInput("leftbottom", Input(DEVICE_KEYBOARD, TYPE_KEY, SDLK_RIGHTBRACKET, 1, true));
-	cfg->mapInput("rightbottom", Input(DEVICE_KEYBOARD, TYPE_KEY, SDLK_LEFTBRACKET, 1, true));
+	cfg->mapInput("pageup", Input(DEVICE_KEYBOARD, TYPE_KEY, SDLK_RIGHTBRACKET, 1, true));
+	cfg->mapInput("pagedown", Input(DEVICE_KEYBOARD, TYPE_KEY, SDLK_LEFTBRACKET, 1, true));
 }
 
 void InputManager::writeDeviceConfig(InputConfig* config)
 {
-    assert(initialized());
+	assert(initialized());
 
-    std::string path = getConfigPath();
+	std::string path = getConfigPath();
 
-    pugi::xml_document doc;
+	pugi::xml_document doc;
 
-    if(fs::exists(path))
-    {
-        // merge files
-        pugi::xml_parse_result result = doc.load_file(path.c_str());
-        if(!result)
-        {
-            LOG(LogError) << "Error parsing input config: " << result.description();
-        }
-        else
-        {
-            // successfully loaded, delete the old entry if it exists
-            pugi::xml_node root = doc.child("inputList");
-            if(root)
-            {
-                // if inputAction @type=onfinish is set, let onfinish command take care for creating input configuration.
-                // we just put the input configuration into a temporary input config file.
-                pugi::xml_node actionnode = root.find_child_by_attribute("inputAction", "type", "onfinish");
-                if(actionnode)
-                {
-                    path = getTemporaryConfigPath();
-                    doc.reset();
-                    root = doc.append_child("inputList");
-                    root.append_copy(actionnode);
-                }
-                else
-                {
-                    pugi::xml_node oldEntry = root.find_child_by_attribute("inputConfig", "deviceGUID",
-                                              config->getDeviceGUIDString().c_str());
-                    if(oldEntry)
-                    {
-                        root.remove_child(oldEntry);
-                    }
-                    oldEntry = root.find_child_by_attribute("inputConfig", "deviceName",
-                                                            config->getDeviceName().c_str());
-                    if(oldEntry)
-                    {
-                        root.remove_child(oldEntry);
-                    }
-                }
-            }
-        }
-    }
+	if(Utils::FileSystem::exists(path))
+	{
+		// merge files
+		pugi::xml_parse_result result = doc.load_file(path.c_str());
+		if(!result)
+		{
+			LOG(LogError) << "Error parsing input config: " << result.description();
+		}
+		else
+		{
+			// successfully loaded, delete the old entry if it exists
+			pugi::xml_node root = doc.child("inputList");
+			if(root)
+			{
+				// if inputAction @type=onfinish is set, let onfinish command take care for creating input configuration.
+				// we just put the input configuration into a temporary input config file.
+				pugi::xml_node actionnode = root.find_child_by_attribute("inputAction", "type", "onfinish");
+				if(actionnode)
+				{
+					path = getTemporaryConfigPath();
+					doc.reset();
+					root = doc.append_child("inputList");
+					root.append_copy(actionnode);
+				}
+				else
+				{
+					pugi::xml_node oldEntry = root.find_child_by_attribute("inputConfig", "deviceGUID",
+											  config->getDeviceGUIDString().c_str());
+					if(oldEntry)
+					{
+						root.remove_child(oldEntry);
+					}
+					oldEntry = root.find_child_by_attribute("inputConfig", "deviceName",
+															config->getDeviceName().c_str());
+					if(oldEntry)
+					{
+						root.remove_child(oldEntry);
+					}
+				}
+			}
+		}
+	}
 
 	pugi::xml_node root = doc.child("inputList");
 	if(!root)
@@ -348,60 +396,64 @@ void InputManager::writeDeviceConfig(InputConfig* config)
 
 	config->writeToXML(root);
 	doc.save_file(path.c_str());
+	
+	// execute any onFinish commands and re-load the config for changes
+	doOnFinish();
+	loadInputConfig(config);
 }
 
 void InputManager::doOnFinish()
 {
-    assert(initialized());
-    std::string path = getConfigPath();
-    pugi::xml_document doc;
+	assert(initialized());
+	std::string path = getConfigPath();
+	pugi::xml_document doc;
 
-    if(fs::exists(path))
-    {
-        pugi::xml_parse_result result = doc.load_file(path.c_str());
-        if(!result)
-        {
-            LOG(LogError) << "Error parsing input config: " << result.description();
-        }
-        else
-        {
-            pugi::xml_node root = doc.child("inputList");
-            if(root)
-            {
-                root = root.find_child_by_attribute("inputAction", "type", "onfinish");
-                if(root)
-                {
-                    for(pugi::xml_node command = root.child("command"); command;
-                            command = command.next_sibling("command"))
-                    {
-                        std::string tocall = command.text().get();
+	if(Utils::FileSystem::exists(path))
+	{
+		pugi::xml_parse_result result = doc.load_file(path.c_str());
+		if(!result)
+		{
+			LOG(LogError) << "Error parsing input config: " << result.description();
+		}
+		else
+		{
+			pugi::xml_node root = doc.child("inputList");
+			if(root)
+			{
+				root = root.find_child_by_attribute("inputAction", "type", "onfinish");
+				if(root)
+				{
+					for(pugi::xml_node command = root.child("command"); command;
+							command = command.next_sibling("command"))
+					{
+						std::string tocall = command.text().get();
 
-                        LOG(LogInfo) << "	" << tocall;
-                        std::cout << "==============================================\ninput config finish command:\n";
-                        int exitCode = runSystemCommand(tocall);
-                        std::cout << "==============================================\n";
+						LOG(LogInfo) << "	" << tocall;
+						std::cout << "==============================================\ninput config finish command:\n";
+						int exitCode = runSystemCommand(tocall);
+						std::cout << "==============================================\n";
 
-                        if(exitCode != 0)
-                        {
-                            LOG(LogWarning) << "...launch terminated with nonzero exit code " << exitCode << "!";
-                        }
-                    }
-                }
-            }
-        }
-    }
+						if(exitCode != 0)
+						{
+							LOG(LogWarning) << "...launch terminated with nonzero exit code " << exitCode << "!";
+						}
+					}
+				}
+			}
+		}
+	}
 }
 
 std::string InputManager::getConfigPath()
 {
-	std::string path = getHomePath();
+	std::string path = Utils::FileSystem::getHomePath();
 	path += "/.emulationstation/es_input.cfg";
 	return path;
 }
 
 std::string InputManager::getTemporaryConfigPath()
 {
-	std::string path = getHomePath();
+	std::string path = Utils::FileSystem::getHomePath();
 	path += "/.emulationstation/es_temporaryinput.cfg";
 	return path;
 }
@@ -414,13 +466,16 @@ bool InputManager::initialized() const
 int InputManager::getNumConfiguredDevices()
 {
 	int num = 0;
-	for(auto it = mInputConfigs.begin(); it != mInputConfigs.end(); it++)
+	for(auto it = mInputConfigs.cbegin(); it != mInputConfigs.cend(); it++)
 	{
 		if(it->second->isConfigured())
 			num++;
 	}
 
 	if(mKeyboardInputConfig->isConfigured())
+		num++;
+
+	if(mCECInputConfig->isConfigured())
 		num++;
 
 	return num;
@@ -431,8 +486,11 @@ std::string InputManager::getDeviceGUIDString(int deviceId)
 	if(deviceId == DEVICE_KEYBOARD)
 		return KEYBOARD_GUID_STRING;
 
+	if(deviceId == DEVICE_CEC)
+		return CEC_GUID_STRING;
+
 	auto it = mJoysticks.find(deviceId);
-	if(it == mJoysticks.end())
+	if(it == mJoysticks.cend())
 	{
 		LOG(LogError) << "getDeviceGUIDString - deviceId " << deviceId << " not found!";
 		return "something went horribly wrong";
