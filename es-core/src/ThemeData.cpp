@@ -2,14 +2,13 @@
 
 #include "components/ImageComponent.h"
 #include "components/TextComponent.h"
-#include "utils/FileSystemUtil.h"
 #include "Log.h"
 #include "platform.h"
 #include "Settings.h"
-#include <pugixml/src/pugixml.hpp>
-#include <algorithm>
+#include <boost/filesystem/operations.hpp>
+#include <boost/xpressive/xpressive_static.hpp>
 
-std::vector<std::string> ThemeData::sSupportedViews { { "system" }, { "basic" }, { "detailed" }, { "grid" }, { "video" } };
+std::vector<std::string> ThemeData::sSupportedViews { { "system" }, { "basic" }, { "detailed" }, { "video" } };
 std::vector<std::string> ThemeData::sSupportedFeatures { { "video" }, { "carousel" }, { "z-index" } };
 
 std::map<std::string, std::map<std::string, ThemeData::ElementPropertyType>> ThemeData::sElementMap {
@@ -25,22 +24,6 @@ std::map<std::string, std::map<std::string, ThemeData::ElementPropertyType>> The
 		{ "tile", BOOLEAN },
 		{ "color", COLOR },
 		{ "zIndex", FLOAT } } },
-	{ "imagegrid", {
-		{ "pos", NORMALIZED_PAIR },
-		{ "size", NORMALIZED_PAIR },
-		{ "margin", NORMALIZED_PAIR },
-		{ "gameImage", PATH },
-		{ "folderImage", PATH },
-		{ "scrollDirection", STRING } } },
-	{ "gridtile", {
-		{ "size", NORMALIZED_PAIR },
-		{ "padding", NORMALIZED_PAIR },
-		{ "imageColor", COLOR },
-		{ "backgroundImage", PATH },
-		{ "backgroundCornerSize", NORMALIZED_PAIR },
-		{ "backgroundColor", COLOR },
-		{ "backgroundCenterColor", COLOR },
-		{ "backgroundEdgeColor", COLOR } } },
 	{ "text", {
 		{ "pos", NORMALIZED_PAIR },
 		{ "size", NORMALIZED_PAIR },
@@ -90,19 +73,10 @@ std::map<std::string, std::map<std::string, ThemeData::ElementPropertyType>> The
 	{ "datetime", {
 		{ "pos", NORMALIZED_PAIR },
 		{ "size", NORMALIZED_PAIR },
-		{ "origin", NORMALIZED_PAIR },
-		{ "rotation", FLOAT },
-		{ "rotationOrigin", NORMALIZED_PAIR },
-		{ "backgroundColor", COLOR },
+		{ "color", COLOR },
 		{ "fontPath", PATH },
 		{ "fontSize", FLOAT },
-		{ "color", COLOR },
-		{ "alignment", STRING },
 		{ "forceUppercase", BOOLEAN },
-		{ "lineSpacing", FLOAT },
-		{ "value", STRING },
-		{ "format", STRING },
-		{ "displayRelative", BOOLEAN },
 		{ "zIndex", FLOAT } } },
 	{ "rating", {
 		{ "pos", NORMALIZED_PAIR },
@@ -118,7 +92,6 @@ std::map<std::string, std::map<std::string, ThemeData::ElementPropertyType>> The
 		{ "path", PATH } } },
 	{ "helpsystem", {
 		{ "pos", NORMALIZED_PAIR },
-		{ "origin", NORMALIZED_PAIR },
 		{ "textColor", COLOR },
 		{ "iconColor", COLOR },
 		{ "fontPath", PATH },
@@ -150,8 +123,10 @@ std::map<std::string, std::map<std::string, ThemeData::ElementPropertyType>> The
 		{ "zIndex", FLOAT } } }
 };
 
+namespace fs = boost::filesystem;
+
 #define MINIMUM_THEME_FORMAT_VERSION 3
-#define CURRENT_THEME_FORMAT_VERSION 6
+#define CURRENT_THEME_FORMAT_VERSION 5
 
 // helper
 unsigned int getHexColor(const char* str)
@@ -175,26 +150,49 @@ unsigned int getHexColor(const char* str)
 	return val;
 }
 
+// helper
+std::string resolvePath(const char* in, const fs::path& relative)
+{
+	if(!in || in[0] == '\0')
+		return in;
+
+	fs::path relPath = relative.parent_path();
+	
+	boost::filesystem::path path(in);
+	
+	// we use boost filesystem here instead of just string checks because 
+	// some directories could theoretically start with ~ or .
+	if(*path.begin() == "~")
+	{
+		path = getHomePath() + (in + 1);
+	}else if(*path.begin() == ".")
+	{
+		path = relPath / (in + 1);
+	}
+
+	return path.generic_string();
+}
+
 std::map<std::string, std::string> mVariables;
+
+std::string &format_variables(const boost::xpressive::smatch &what)
+{
+	return mVariables[what[1].str()];
+}
 
 std::string resolvePlaceholders(const char* in)
 {
+	if(!in || in[0] == '\0')
+		return std::string(in);
+		
 	std::string inStr(in);
+	
+	using namespace boost::xpressive;
+	sregex rex = "${" >> (s1 = +('.' | _w)) >> '}';
+    
+	std::string output = regex_replace(inStr, rex, format_variables);
 
-	if(inStr.empty())
-		return inStr;
-
-	const size_t variableBegin = inStr.find("${");
-	const size_t variableEnd   = inStr.find("}", variableBegin);
-
-	if((variableBegin == std::string::npos) || (variableEnd == std::string::npos))
-		return inStr;
-
-	std::string prefix  = inStr.substr(0, variableBegin);
-	std::string replace = inStr.substr(variableBegin + 2, variableEnd - (variableBegin + 2));
-	std::string suffix  = resolvePlaceholders(inStr.substr(variableEnd + 1).c_str());
-
-	return prefix + mVariables[replace] + suffix;
+	return output;
 }
 
 ThemeData::ThemeData()
@@ -209,14 +207,14 @@ void ThemeData::loadFile(std::map<std::string, std::string> sysDataMap, const st
 	ThemeException error;
 	error.setFiles(mPaths);
 
-	if(!Utils::FileSystem::exists(path))
+	if(!fs::exists(path))
 		throw error << "File does not exist!";
 
 	mVersion = 0;
 	mViews.clear();
 	mVariables.clear();
 
-	mVariables.insert(sysDataMap.cbegin(), sysDataMap.cend());
+	mVariables.insert(sysDataMap.begin(), sysDataMap.end());
 
 	pugi::xml_document doc;
 	pugi::xml_parse_result res = doc.load_file(path.c_str());
@@ -248,8 +246,8 @@ void ThemeData::parseIncludes(const pugi::xml_node& root)
 
 	for(pugi::xml_node node = root.child("include"); node; node = node.next_sibling("include"))
 	{
-		std::string relPath = resolvePlaceholders(node.text().as_string());
-		std::string path = Utils::FileSystem::resolveRelativePath(relPath, mPaths.back(), true);
+		const char* relPath = node.text().get();
+		std::string path = resolvePath(relPath, mPaths.back());
 		if(!ResourceManager::getInstance()->fileExists(path))
 			throw error << "Included file \"" << relPath << "\" not found! (resolved to \"" << path << "\")";
 
@@ -287,7 +285,7 @@ void ThemeData::parseFeatures(const pugi::xml_node& root)
 
 		const std::string supportedAttr = node.attribute("supported").as_string();
 
-		if (std::find(sSupportedFeatures.cbegin(), sSupportedFeatures.cend(), supportedAttr) != sSupportedFeatures.cend())
+		if (std::find(sSupportedFeatures.begin(), sSupportedFeatures.end(), supportedAttr) != sSupportedFeatures.end())
 		{
 			parseViews(node);
 		}
@@ -336,7 +334,7 @@ void ThemeData::parseViews(const pugi::xml_node& root)
 			prevOff = nameAttr.find_first_not_of(delim, off);
 			off = nameAttr.find_first_of(delim, prevOff);
 			
-			if (std::find(sSupportedViews.cbegin(), sSupportedViews.cend(), viewKey) != sSupportedViews.cend())
+			if (std::find(sSupportedViews.begin(), sSupportedViews.end(), viewKey) != sSupportedViews.end())
 			{
 				ThemeView& view = mViews.insert(std::pair<std::string, ThemeView>(viewKey, ThemeView())).first->second;
 				parseView(node, view);
@@ -356,7 +354,7 @@ void ThemeData::parseView(const pugi::xml_node& root, ThemeView& view)
 			throw error << "Element of type \"" << node.name() << "\" missing \"name\" attribute!";
 
 		auto elemTypeIt = sElementMap.find(node.name());
-		if(elemTypeIt == sElementMap.cend())
+		if(elemTypeIt == sElementMap.end())
 			throw error << "Unknown element of type \"" << node.name() << "\"!";
 
 		const char* delim = " \t\r\n,";
@@ -372,7 +370,7 @@ void ThemeData::parseView(const pugi::xml_node& root, ThemeView& view)
 			parseElement(node, elemTypeIt->second, 
 				view.elements.insert(std::pair<std::string, ThemeElement>(elemKey, ThemeElement())).first->second);
 
-			if(std::find(view.orderedKeys.cbegin(), view.orderedKeys.cend(), elemKey) == view.orderedKeys.cend())
+			if(std::find(view.orderedKeys.begin(), view.orderedKeys.end(), elemKey) == view.orderedKeys.end())
 				view.orderedKeys.push_back(elemKey);
 		}
 	}
@@ -390,7 +388,7 @@ void ThemeData::parseElement(const pugi::xml_node& root, const std::map<std::str
 	for(pugi::xml_node node = root.first_child(); node; node = node.next_sibling())
 	{
 		auto typeIt = typeMap.find(node.name());
-		if(typeIt == typeMap.cend())
+		if(typeIt == typeMap.end())
 			throw error << "Unknown property type \"" << node.name() << "\" (for element of type " << root.name() << ").";
 
 		std::string str = resolvePlaceholders(node.text().as_string());
@@ -406,7 +404,7 @@ void ThemeData::parseElement(const pugi::xml_node& root, const std::map<std::str
 			std::string first = str.substr(0, divider);
 			std::string second = str.substr(divider, std::string::npos);
 
-			Vector2f val((float)atof(first.c_str()), (float)atof(second.c_str()));
+			Vector2f val(atof(first.c_str()), atof(second.c_str()));
 
 			element.properties[node.name()] = val;
 			break;
@@ -416,7 +414,7 @@ void ThemeData::parseElement(const pugi::xml_node& root, const std::map<std::str
 			break;
 		case PATH:
 		{
-			std::string path = Utils::FileSystem::resolveRelativePath(str, mPaths.back(), true);
+			std::string path = resolvePath(str.c_str(), mPaths.back().string());
 			if(!ResourceManager::getInstance()->fileExists(path))
 			{
 				std::stringstream ss;
@@ -458,17 +456,17 @@ void ThemeData::parseElement(const pugi::xml_node& root, const std::map<std::str
 bool ThemeData::hasView(const std::string& view)
 {
 	auto viewIt = mViews.find(view);
-	return (viewIt != mViews.cend());
+	return (viewIt != mViews.end());
 }
 
 const ThemeData::ThemeElement* ThemeData::getElement(const std::string& view, const std::string& element, const std::string& expectedType) const
 {
 	auto viewIt = mViews.find(view);
-	if(viewIt == mViews.cend())
+	if(viewIt == mViews.end())
 		return NULL; // not found
 
 	auto elemIt = viewIt->second.elements.find(element);
-	if(elemIt == viewIt->second.elements.cend()) return NULL;
+	if(elemIt == viewIt->second.elements.end()) return NULL;
 
 	if(elemIt->second.type != expectedType && !expectedType.empty())
 	{
@@ -487,8 +485,8 @@ const std::shared_ptr<ThemeData>& ThemeData::getDefault()
 	{
 		theme = std::shared_ptr<ThemeData>(new ThemeData());
 
-		const std::string path = Utils::FileSystem::getHomePath() + "/.emulationstation/es_theme_default.xml";
-		if(Utils::FileSystem::exists(path))
+		const std::string path = getHomePath() + "/.emulationstation/es_theme_default.xml";
+		if(fs::exists(path))
 		{
 			try
 			{
@@ -510,10 +508,10 @@ std::vector<GuiComponent*> ThemeData::makeExtras(const std::shared_ptr<ThemeData
 	std::vector<GuiComponent*> comps;
 
 	auto viewIt = theme->mViews.find(view);
-	if(viewIt == theme->mViews.cend())
+	if(viewIt == theme->mViews.end())
 		return comps;
 	
-	for(auto it = viewIt->second.orderedKeys.cbegin(); it != viewIt->second.orderedKeys.cend(); it++)
+	for(auto it = viewIt->second.orderedKeys.begin(); it != viewIt->second.orderedKeys.end(); it++)
 	{
 		ThemeElement& elem = viewIt->second.elements.at(*it);
 		if(elem.extra)
@@ -539,22 +537,21 @@ std::map<std::string, ThemeSet> ThemeData::getThemeSets()
 	std::map<std::string, ThemeSet> sets;
 
 	static const size_t pathCount = 2;
-	std::string paths[pathCount] =
-	{ 
+	fs::path paths[pathCount] = { 
 		"/etc/emulationstation/themes", 
-		Utils::FileSystem::getHomePath() + "/.emulationstation/themes" 
+		getHomePath() + "/.emulationstation/themes" 
 	};
+
+	fs::directory_iterator end;
 
 	for(size_t i = 0; i < pathCount; i++)
 	{
-		if(!Utils::FileSystem::isDirectory(paths[i]))
+		if(!fs::is_directory(paths[i]))
 			continue;
 
-		Utils::FileSystem::stringList dirContent = Utils::FileSystem::getDirContent(paths[i]);
-
-		for(Utils::FileSystem::stringList::const_iterator it = dirContent.cbegin(); it != dirContent.cend(); ++it)
+		for(fs::directory_iterator it(paths[i]); it != end; ++it)
 		{
-			if(Utils::FileSystem::isDirectory(*it))
+			if(fs::is_directory(*it))
 			{
 				ThemeSet set = {*it};
 				sets[set.getName()] = set;
@@ -565,20 +562,20 @@ std::map<std::string, ThemeSet> ThemeData::getThemeSets()
 	return sets;
 }
 
-std::string ThemeData::getThemeFromCurrentSet(const std::string& system)
+fs::path ThemeData::getThemeFromCurrentSet(const std::string& system)
 {
-	std::map<std::string, ThemeSet> themeSets = ThemeData::getThemeSets();
+	auto themeSets = ThemeData::getThemeSets();
 	if(themeSets.empty())
 	{
 		// no theme sets available
 		return "";
 	}
 
-	std::map<std::string, ThemeSet>::const_iterator set = themeSets.find(Settings::getInstance()->getString("ThemeSet"));
-	if(set == themeSets.cend())
+	auto set = themeSets.find(Settings::getInstance()->getString("ThemeSet"));
+	if(set == themeSets.end())
 	{
 		// currently selected theme set is missing, so just pick the first available set
-		set = themeSets.cbegin();
+		set = themeSets.begin();
 		Settings::getInstance()->setString("ThemeSet", set->first);
 	}
 

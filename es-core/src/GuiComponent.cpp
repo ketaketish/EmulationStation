@@ -6,7 +6,6 @@
 #include "Renderer.h"
 #include "ThemeData.h"
 #include "Window.h"
-#include <algorithm>
 
 GuiComponent::GuiComponent(Window* window) : mWindow(window), mParent(NULL), mOpacity(255),
 	mPosition(Vector3f::Zero()), mOrigin(Vector2f::Zero()), mRotationOrigin(0.5, 0.5),
@@ -186,7 +185,7 @@ void GuiComponent::removeChild(GuiComponent* cmp)
 
 	cmp->setParent(NULL);
 
-	for(auto i = mChildren.cbegin(); i != mChildren.cend(); i++)
+	for(auto i = mChildren.begin(); i != mChildren.end(); i++)
 	{
 		if(*i == cmp)
 		{
@@ -210,7 +209,7 @@ void GuiComponent::sortChildren()
 
 unsigned int GuiComponent::getChildCount() const
 {
-	return (int)mChildren.size();
+	return mChildren.size();
 }
 
 GuiComponent* GuiComponent::getChild(unsigned int i) const
@@ -236,7 +235,7 @@ unsigned char GuiComponent::getOpacity() const
 void GuiComponent::setOpacity(unsigned char opacity)
 {
 	mOpacity = opacity;
-	for(auto it = mChildren.cbegin(); it != mChildren.cend(); it++)
+	for(auto it = mChildren.begin(); it != mChildren.end(); it++)
 	{
 		(*it)->setOpacity(opacity);
 	}
@@ -253,9 +252,8 @@ const Transform4x4f& GuiComponent::getTransform()
 	if (mRotation != 0.0)
 	{
 		// Calculate offset as difference between origin and rotation origin
-		Vector2f rotationSize = getRotationSize();
-		float xOff = (mOrigin.x() - mRotationOrigin.x()) * rotationSize.x();
-		float yOff = (mOrigin.y() - mRotationOrigin.y()) * rotationSize.y();
+		float xOff = (mOrigin.x() - mRotationOrigin.x()) * mSize.x();
+		float yOff = (mOrigin.y() - mRotationOrigin.y()) * mSize.y();
 
 		// transform to offset point
 		if (xOff != 0.0 || yOff != 0.0)
@@ -272,7 +270,7 @@ const Transform4x4f& GuiComponent::getTransform()
 	return mTransform;
 }
 
-void GuiComponent::setValue(const std::string& /*value*/)
+void GuiComponent::setValue(const std::string& value)
 {
 }
 
@@ -283,7 +281,7 @@ std::string GuiComponent::getValue() const
 
 void GuiComponent::textInput(const char* text)
 {
-	for(auto iter = mChildren.cbegin(); iter != mChildren.cend(); iter++)
+	for(auto iter = mChildren.begin(); iter != mChildren.end(); iter++)
 	{
 		(*iter)->textInput(text);
 	}

@@ -1,7 +1,7 @@
 #include "resources/TextureResource.h"
 
-#include "utils/FileSystemUtil.h"
 #include "resources/TextureData.h"
+#include "Util.h"
 
 TextureDataManager		TextureResource::sTextureDataManager;
 std::map< TextureResource::TextureKeyType, std::weak_ptr<TextureResource> > TextureResource::sTextureMap;
@@ -31,7 +31,7 @@ TextureResource::TextureResource(const std::string& path, bool tile, bool dynami
 			data->load();
 		}
 
-		mSize = Vector2i((int)data->width(), (int)data->height());
+		mSize = Vector2i(data->width(), data->height());
 		mSourceSize = Vector2f(data->sourceWidth(), data->sourceHeight());
 	}
 	else
@@ -58,7 +58,7 @@ void TextureResource::initFromPixels(const unsigned char* dataRGBA, size_t width
 	mTextureData->releaseRAM();
 	mTextureData->initFromRGBA(dataRGBA, width, height);
 	// Cache the image dimensions
-	mSize = Vector2i((int)width, (int)height);
+	mSize = Vector2i(width, height);
 	mSourceSize = Vector2f(mTextureData->sourceWidth(), mTextureData->sourceHeight());
 }
 
@@ -70,7 +70,7 @@ void TextureResource::initFromMemory(const char* data, size_t length)
 	mTextureData->releaseRAM();
 	mTextureData->initImageFromMemory((const unsigned char*)data, length);
 	// Get the size from the texture data
-	mSize = Vector2i((int)mTextureData->width(), (int)mTextureData->height());
+	mSize = Vector2i(mTextureData->width(), mTextureData->height());
 	mSourceSize = Vector2f(mTextureData->sourceWidth(), mTextureData->sourceHeight());
 }
 
@@ -104,7 +104,7 @@ std::shared_ptr<TextureResource> TextureResource::get(const std::string& path, b
 {
 	std::shared_ptr<ResourceManager>& rm = ResourceManager::getInstance();
 
-	const std::string canonicalPath = Utils::FileSystem::getCanonicalPath(path);
+	const std::string canonicalPath = getCanonicalPath(path);
 	if(canonicalPath.empty())
 	{
 		std::shared_ptr<TextureResource> tex(new TextureResource("", tile, false));
@@ -114,7 +114,7 @@ std::shared_ptr<TextureResource> TextureResource::get(const std::string& path, b
 
 	TextureKeyType key(canonicalPath, tile);
 	auto foundTexture = sTextureMap.find(key);
-	if(foundTexture != sTextureMap.cend())
+	if(foundTexture != sTextureMap.end())
 	{
 		if(!foundTexture->second.expired())
 			return foundTexture->second.lock();
@@ -199,7 +199,7 @@ size_t TextureResource::getTotalTextureSize()
 	return total;
 }
 
-void TextureResource::unload(std::shared_ptr<ResourceManager>& /*rm*/)
+void TextureResource::unload(std::shared_ptr<ResourceManager>& rm)
 {
 	// Release the texture's resources
 	std::shared_ptr<TextureData> data;
@@ -212,7 +212,7 @@ void TextureResource::unload(std::shared_ptr<ResourceManager>& /*rm*/)
 	data->releaseRAM();
 }
 
-void TextureResource::reload(std::shared_ptr<ResourceManager>& /*rm*/)
+void TextureResource::reload(std::shared_ptr<ResourceManager>& rm)
 {
 	// For dynamically loaded textures the texture manager will load them on demand.
 	// For manually loaded textures we have to reload them here

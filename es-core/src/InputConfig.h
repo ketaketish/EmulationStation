@@ -2,17 +2,14 @@
 #ifndef ES_CORE_INPUT_CONFIG_H
 #define ES_CORE_INPUT_CONFIG_H
 
-#include <CECInput.h>
+#include <pugixml/src/pugixml.hpp>
 #include <SDL_joystick.h>
 #include <SDL_keyboard.h>
 #include <map>
 #include <sstream>
 #include <vector>
 
-namespace pugi { class xml_node; }
-
 #define DEVICE_KEYBOARD -1
-#define DEVICE_CEC      -2
 
 enum InputType
 {
@@ -20,7 +17,6 @@ enum InputType
 	TYPE_BUTTON,
 	TYPE_HAT,
 	TYPE_KEY,
-	TYPE_CEC_BUTTON,
 	TYPE_COUNT
 };
 
@@ -59,11 +55,6 @@ public:
 		return "neutral?";
 	}
 
-	std::string getCECButtonName(int keycode)
-	{
-		return CECInput::getKeyCodeString(keycode);
-	}
-
 	std::string string()
 	{
 		std::stringstream stream;
@@ -80,9 +71,6 @@ public:
 				break;
 			case TYPE_KEY:
 				stream << "Key " << SDL_GetKeyName((SDL_Keycode)id);
-				break;
-			case TYPE_CEC_BUTTON:
-				stream << "CEC-Button " << getCECButtonName(id);
 				break;
 			default:
 				stream << "Input to string error";
@@ -108,7 +96,6 @@ public:
 
 	//Returns true if Input is mapped to this name, false otherwise.
 	bool isMappedTo(const std::string& name, Input input);
-	bool isMappedLike(const std::string& name, Input input);
 
 	//Returns a list of names this input is mapped to.
 	std::vector<std::string> getMappedTo(Input input);
@@ -117,8 +104,8 @@ public:
 	// Writes Input mapped to this name to result if true.
 	bool getInputByName(const std::string& name, Input* result);
 
-	void loadFromXML(pugi::xml_node& root);
-	void writeToXML(pugi::xml_node& parent);
+	void loadFromXML(pugi::xml_node root);
+	void writeToXML(pugi::xml_node parent);
 
 	bool isConfigured();
 
