@@ -63,7 +63,7 @@ public:
 	bool getAllowSleep();
 	void setAllowSleep(bool sleep);
 
-	void renderLoadingScreen(std::string text);
+	void renderLoadingScreen();
 
 	void renderHelpPromptsEarly(); // used to render HelpPrompts before a fade
 	void setHelpPrompts(const std::vector<HelpPrompt>& prompts, const HelpStyle& style);
