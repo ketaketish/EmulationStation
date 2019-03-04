@@ -305,7 +305,7 @@ void Window::renderLoadingScreen()
 	splash.render(trans);
 
 	auto& font = mDefaultFonts.at(1);
-        TextCache* cache = font->buildTextCache("- LOADING -\nCustom Image Created By Doctor X ", Vector2f(0, 0), 0x656565FF, 0.1f, ALIGN_CENTER, 1.1f);
+        TextCache* cache = font->buildTextCache("\n\nLOADING...", Vector2f(0, 0), 0x656565FF, 0.1f, ALIGN_CENTER, 1.1f);
         trans = trans.translate(Vector3f(Math::round((Renderer::getScreenWidth() * 1.0f) / 2.0f),
                 Math::round(Renderer::getScreenHeight() * 0.7f), 0.0f));
         Renderer::setMatrix(trans);
