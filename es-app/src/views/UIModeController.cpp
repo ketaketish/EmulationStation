@@ -94,12 +94,6 @@ bool UIModeController::isUIModeKid()
 		((mCurrentUIMode == "Kid") && !Settings::getInstance()->getBool("ForceKiosk")));
 }
 
-bool UIModeController::isUIModeKiosk()
-{
-	return (Settings::getInstance()->getBool("ForceKiosk") ||
-		((mCurrentUIMode == "Kiosk") && !Settings::getInstance()->getBool("ForceKid")));
-}
-
 std::string UIModeController::getFormattedPassKeyStr()
 {
 	// supported sequence-inputs: u (up), d (down), l (left), r (right), a, b, x, y
@@ -150,20 +144,19 @@ void UIModeController::logInput(InputConfig * config, Input input)
 		mapname += mn;
 		mapname += ", ";
 	}
-	LOG(LogDebug) << "UIModeController::logInput( " << config->getDeviceName() <<" ):" <<
-		input.string() << ", isMappedTo= " << mapname <<", value=" << input.value << ", isValidInput: " <<
-		(isValidInput(config,input)? "yes" : "no");
+	LOG(LogDebug) << "UIModeController::logInput( " << config->getDeviceName() <<" ):" << input.string() << ", isMappedTo= " << mapname << ", value=" << input.value;
 }
 
 bool UIModeController::isValidInput(InputConfig * config, Input input)
 {
-	if((config->getMappedTo(input).size() != 0) && // a mapped input, and
-		(input.value != 0))                          // a key-down event
+	if((config->getMappedTo(input).size() == 0)  || // not a mapped input, so ignore.
+		(input.type == TYPE_HAT) ||  // ignore all HAT inputs
+		(!input.value))	// not a key-down event
 	{
-		return true;
+		return false;
 	}
 	else
 	{
-		return false;
+		return true;
 	}
 }

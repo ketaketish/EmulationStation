@@ -1,11 +1,11 @@
 #include "scrapers/GamesDBScraper.h"
 
+#include "utils/TimeUtil.h"
 #include "FileData.h"
 #include "Log.h"
 #include "PlatformId.h"
 #include "Settings.h"
 #include "SystemData.h"
-#include "Util.h"
 #include <pugixml/src/pugixml.hpp>
 
 using namespace PlatformIds;
@@ -46,7 +46,7 @@ const std::map<PlatformId, const char*> gamesdb_platformid_map {
 	{ NINTENDO_WII, "Nintendo Wii" },
 	{ NINTENDO_WII_U, "Nintendo Wii U" },
 	{ NINTENDO_VIRTUAL_BOY, "Nintendo Virtual Boy" },
-	{ NINTENDO_GAME_AND_WATCH, "Game & Watch" },
+	{ NINTENDO_GAME_AND_WATCH, "Game &amp; Watch" },
 	{ PC, "PC" },
 	{ SEGA_32X, "Sega 32X" },
 	{ SEGA_CD, "Sega CD" },
@@ -64,7 +64,8 @@ const std::map<PlatformId, const char*> gamesdb_platformid_map {
 	{ PLAYSTATION_VITA, "Sony Playstation Vita" },
 	{ PLAYSTATION_PORTABLE, "Sony Playstation Portable" },
 	{ SUPER_NINTENDO, "Super Nintendo (SNES)" },
-	{ TURBOGRAFX_16, "TurboGrafx 16" },
+	{ TURBOGRAFX_16, "TurboGrafx 16" }, // HuCards only
+	{ TURBOGRAFX_CD, "TurboGrafx CD" }, // CD-ROMs only
 	{ WONDERSWAN, "WonderSwan" },
 	{ WONDERSWAN_COLOR, "WonderSwan Color" },
 	{ ZX_SPECTRUM, "Sinclair ZX Spectrum" },
@@ -156,10 +157,7 @@ void TheGamesDBRequest::processGame(const pugi::xml_document& xmldoc, std::vecto
 
 		result.mdl.set("name", game.child("GameTitle").text().get());
 		result.mdl.set("desc", game.child("Overview").text().get());
-
-		boost::posix_time::ptime rd = string_to_ptime(game.child("ReleaseDate").text().get(), "%m/%d/%Y");
-		result.mdl.setTime("releasedate", rd);
-
+		result.mdl.set("releasedate", Utils::Time::DateTime(Utils::Time::stringToTime(game.child("ReleaseDate").text().get(), "%m/%d/%Y")));
 		result.mdl.set("developer", game.child("Developer").text().get());
 		result.mdl.set("publisher", game.child("Publisher").text().get());
 		result.mdl.set("genre", game.child("Genres").first_child().text().get());

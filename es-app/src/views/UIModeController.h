@@ -26,7 +26,6 @@ public:
 
 	bool isUIModeFull();
 	bool isUIModeKid();
-	bool isUIModeKiosk();
 	inline std::vector<std::string> getUIModes() { return mUIModes; };
 private:
 	UIModeController();

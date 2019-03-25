@@ -273,7 +273,7 @@ int VolumeControl::getVolume() const
 				rawVolume -= minVolume;
 				if (rawVolume > 0)
 				{
-					volume = (rawVolume * 100.0) / (maxVolume - minVolume) + 0.5;
+					volume = (rawVolume * 100) / (maxVolume - minVolume);
 				}
 				//else volume = 0;
 			}
