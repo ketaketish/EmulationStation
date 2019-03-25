@@ -7,12 +7,8 @@
 <bios>aristmk5</bios>
 <bios>aristmk6</bios>
 <bios>atarisy1</bios>
-<bios>atluspsx</bios>
-<bios>atpsx</bios>
 <bios>awbios</bios>
-<bios>bctvidbs</bios>
 <bios>bubsys</bios>
-<bios>cd32</bios>
 <bios>cdibios</bios>
 <bios>cedmag</bios>
 <bios>chihiro</bios>
@@ -26,8 +22,6 @@
 <bios>coh1002v</bios>
 <bios>coh3002c</bios>
 <bios>coh3002t</bios>
-<bios>cpzn1</bios>
-<bios>cpzn2</bios>
 <bios>crysbios</bios>
 <bios>cubo</bios>
 <bios>decocass</bios>
@@ -48,7 +42,6 @@
 <bios>kviper</bios>
 <bios>lindbios</bios>
 <bios>list.txt</bios>
-<bios>mac2bios</bios>
 <bios>macsbios</bios>
 <bios>maxaflex</bios>
 <bios>megaplay</bios>
@@ -60,7 +53,6 @@
 <bios>nss</bios>
 <bios>pgm</bios>
 <bios>playch10</bios>
-<bios>psarc95</bios>
 <bios>pyson</bios>
 <bios>sammymdl</bios>
 <bios>segasp</bios>
@@ -72,11 +64,8 @@
 <bios>sys246</bios>
 <bios>sys256</bios>
 <bios>sys573</bios>
-<bios>taitofx1</bios>
-<bios>taitogn</bios>
 <bios>taitotz</bios>
 <bios>tourvis</bios>
-<bios>tps</bios>
 <bios>triforce</bios>
 <bios>v4bios</bios>
-<bios>vspsx</bios>
+
