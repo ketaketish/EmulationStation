@@ -32,7 +32,6 @@ public:
 		virtual bool isScreenSaverActive() = 0;
 		virtual FileData* getCurrentGame() = 0;
 		virtual void launchGame() = 0;
-		virtual void resetCounts() = 0;
 	};
 
 	class InfoPopup {
@@ -64,7 +63,7 @@ public:
 	bool getAllowSleep();
 	void setAllowSleep(bool sleep);
 
-	void renderLoadingScreen(std::string text);
+	void renderLoadingScreen();
 
 	void renderHelpPromptsEarly(); // used to render HelpPrompts before a fade
 	void setHelpPrompts(const std::vector<HelpPrompt>& prompts, const HelpStyle& style);
@@ -83,7 +82,7 @@ private:
 
 	// Returns true if at least one component on the stack is processing
 	bool isProcessing();
-
+	
 	HelpComponent* mHelp;
 	ImageComponent* mBackgroundOverlay;
 	ScreenSaver*	mScreenSaver;

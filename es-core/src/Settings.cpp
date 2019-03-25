@@ -22,7 +22,6 @@ std::vector<const char*> settings_dont_save {
 	{ "HideConsole" },
 	{ "ShowExit" },
 	{ "SplashScreen" },
-	{ "SplashScreenProgress" },
 	{ "VSync" },
 	{ "Windowed" },
 	{ "WindowWidth" },
@@ -61,7 +60,6 @@ void Settings::setDefaults()
 	mBoolMap["ShowExit"] = true;
 	mBoolMap["Windowed"] = false;
 	mBoolMap["SplashScreen"] = true;
-	mBoolMap["SplashScreenProgress"] = true;
 	mStringMap["StartupSystem"] = "";
 
 	mBoolMap["VSync"] = true;
@@ -129,8 +127,6 @@ void Settings::setDefaults()
 	mBoolMap["SortAllSystems"] = false;
 	mBoolMap["UseCustomCollectionsSystem"] = true;
 
-	mBoolMap["LocalArt"] = false;
-
 	// Audio out device for volume control
 	#ifdef _RPI_
 		mStringMap["AudioDevice"] = "PCM";
@@ -138,7 +134,6 @@ void Settings::setDefaults()
 		mStringMap["AudioDevice"] = "Master";
 	#endif
 
-	mStringMap["AudioCard"] = "default";
 	mStringMap["UIMode"] = "Full";
 	mStringMap["UIMode_passkey"] = "uuddlrlrba";
 	mBoolMap["ForceKiosk"] = false;
